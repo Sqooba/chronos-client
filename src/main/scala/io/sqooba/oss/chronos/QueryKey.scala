@@ -40,7 +40,7 @@ object QueryKey {
         val rawTags = tagsExtractors.findAllMatchIn(tags).map(m => (m.group(1), m.group(2))).toMap
         IO.succeed(QueryKey(label, rawTags))
 
-      case _ => IO.fail(InvalidQueryError(s"Unable to extract a key and tags from $raw"))
+      case _ => IO.fail(InvalidQueryError(f"Unable to extract a key and tags from $raw"))
     }
 
   def fromTsId[I <: ChronosEntityId](tsId: TsId[I]): QueryKey =
