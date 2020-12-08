@@ -33,7 +33,7 @@ lazy val library =
       val zio            = "1.0.3"
       val sttp           = "2.2.8"
       val typesafeConfig = "1.4.0"
-      val promqlClient   = "0.3.1"
+      val promqlClient   = "HEAD-SNAPSHOT"
       // FIXME: set to newest version when released
       val timeseries = "HEAD-SNAPSHOT"
     }

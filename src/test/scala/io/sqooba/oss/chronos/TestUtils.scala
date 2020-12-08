@@ -23,7 +23,7 @@ object TestUtils {
   def chronosClient: ULayer[SttpClientStubbing with ChronosService] =
     (
       (ZLayer.succeed(config) ++ AsyncHttpClientZioBackend.stubLayer) >+>
-        PrometheusClient.live >+> ChronosClient.live()
+        PrometheusClient.live >+> ChronosClient.live
     ).orDie
 
   val start: Instant = Instant.parse("2020-10-12T14:00:00Z")

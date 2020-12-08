@@ -1,5 +1,6 @@
 package io.sqooba.oss.chronos
 
+import com.typesafe.config.Config
 import io.sqooba.oss.chronos.Chronos.ChronosService
 import io.sqooba.oss.chronos.Query.{ IntermediateResult, Qid, Range, Result }
 import io.sqooba.oss.promql.PrometheusService.PrometheusService
@@ -119,7 +120,7 @@ object ChronosClient {
     prometheusService: PrometheusService
   ): ULayer[ChronosService] = ZLayer.succeed(new ChronosClient(prometheusService))
 
-  def live(): URLayer[PrometheusService, ChronosService] =
+  def live: URLayer[PrometheusService, ChronosService] =
     ZLayer.fromFunction { prom: PrometheusService =>
       new ChronosClient(prom)
     }
@@ -130,6 +131,9 @@ object ChronosClient {
    * just use the ChronosService alone.
    */
   def liveDefault(): TaskLayer[ChronosService] =
-    PrometheusClient.liveDefault >>> ChronosClient.live()
+    PrometheusClient.liveDefault >>> ChronosClient.live
+
+  def liveFromConfig(config: Config): TaskLayer[ChronosService] =
+    PrometheusClient.liveFromConfig(config) >>> ChronosClient.live
 
 }
