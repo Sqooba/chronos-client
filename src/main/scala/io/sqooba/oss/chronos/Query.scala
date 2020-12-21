@@ -137,6 +137,8 @@ object Query {
 
     def byQueryKey: Map[String, TimeSeries[Double]] =
       map.map { case (key, value) => (key.toPromQuery, value) }
+
+    def +(other: Result): Result = Result(map ++ other.map)
   }
 
   /**
@@ -193,7 +195,7 @@ object Query {
   }
 
   type IntermediateResult = Map[Qid, Result]
-  type TransformFunction  = (IntermediateResult, Qid) => IntermediateResult
+  type TransformFunction  = (Result, Qid) => TimeSeries[Double]
 
   /** Transforms an underlying query with the given function. */
   final case class Transform(

@@ -17,6 +17,7 @@ import sttp.client.StringBody
 import sttp.client.RequestT
 import java.net.URLDecoder
 import io.sqooba.oss.timeseries.immutable.TSEntry
+import java.time.Instant
 
 object ChronosSpec extends DefaultRunnableSpec {
 
@@ -67,6 +68,63 @@ object ChronosSpec extends DefaultRunnableSpec {
           )
       )
     ),
+    testM("FAIL: multiple ranges") {
+      /*
+        Here we have an issue, as QueryKey do not store the starting or ending time of a query, we can't distinguish to queries for the same
+        label if they have a different start/end/step.
+        The expected map should have both entry with the same key: this is not possible
+       */
+      val query =
+        testQuery(label1) + testQuery(label1).map(query =>
+          query.copy(id = query.id.copy(start = start.minusSeconds(6000)))
+        )
+
+      assertM(for {
+        _ <- whenRequestMatchesPartial {
+               case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
+                 val start = Instant.parse(debug(content).find(_._1 == "start").get._2)
+                 // Create a response with a single datapoint set to the beginning of the query
+                 Response.ok(f"""
+                      {
+                        "status": "success",
+                        "data": {
+                          "resultType": "matrix",
+                          "result": [
+                            {
+                              "metric": {
+                                "__name__": "Measure_10m_Avg",
+                                "t_id": "122"
+                              },
+                              "values": [
+                                [
+                                  ${start.toEpochMilli() / 1000},
+                                  "28000"
+                                ]
+                              ]
+                            }
+                          ]
+                        }
+                      }
+
+                 """)
+             }
+        result <- query >>= Chronos.query
+      } yield result.map.toList)(
+        equalTo(
+          List[(QueryKey, TimeSeries[Double])](
+            (
+              QueryKey("Measure_10m_Avg", Map("t_id" -> "122")),
+              TSEntry(
+                start.minusSeconds(6000).toEpochMilli(),
+                28000.0,
+                interval10mMs
+              )
+            ),
+            (QueryKey("Measure_10m_Avg", Map("t_id" -> "122")), TSEntry(start.toEpochMilli(), 28000.0, interval10mMs))
+          )
+        ).negate
+      )
+    },
     testM("combining queries") {
       assertM(
         for {
@@ -99,10 +157,6 @@ object ChronosSpec extends DefaultRunnableSpec {
       ) + (
         (testQuery(label3) + testQuery(label2)) +
           (testQuery(label1) + testQuery(label2))
-      )
-
-      val validResponse = Response.ok(
-        TestUtils.loadFile("responses/singleMetric.json")
       )
 
       // fail after three responses to make sure that at most 3 are performed.
@@ -152,39 +206,109 @@ object ChronosSpec extends DefaultRunnableSpec {
         timeseries <- ZIO.fromOption(result.getByQueryKey(label1))
       } yield timeseries).run)(succeeds(anything))
     },
-    testM("advanced mapping") {
-      val aggregationLabel = """Measure_SUM"""
-
-      val query = ((testQuery(label1) + testQuery(label2)) + testQuery(label3)) + (
-        (testQuery(label3) + testQuery(label2)) +
-          (testQuery(label1) + testQuery(label2))
-      )
+    testM("FAIL: multiple ranges in transform") {
+      /*
+          Here we have the same issue with a single query beeing executed with different start/end/step parameters
+          As the result are flattened when given as input to the transform function, we can't distinguish them and the
+          created "SELECTED" timeseries might contain the result from one or another
+       */
+      val aggregationLabel = """SELECTED"""
+      val query =
+        testQuery(label1) + testQuery(label1).map(query =>
+          query.copy(id = query.id.copy(start = start.minusSeconds(6000)))
+        )
 
       val transformedQuery = query
         .transform(aggregationLabel, start, end, 1.minute.toSeconds.toInt) {
-          case (intermediate, qid) =>
-            val sum = intermediate.values
-              .flatMap(_.map)
-              .filter(_._1.key.matches("Measure_10m_Avg"))
-              .map(_._2)
-              .foldLeft(EmptyTimeSeries: TimeSeries[Double])(
-                // strict = false because the base time series is an EmptyTimeSeries
-                _.plus(_, strict = false)
-              )
+          case (intermediate, _) =>
+            intermediate
+              .getByQueryKey(label1)
+              .get
+        }
 
-            intermediate + (qid -> Result(Map(qid.key -> sum)))
+      assertM(for {
+        _ <- whenRequestMatchesPartial {
+               case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
+                 val start = Instant.parse(debug(content).find(_._1 == "start").get._2)
+                 // Create a response with a single datapoint set to the beginning of the query
+                 Response.ok(f"""
+                      {
+                        "status": "success",
+                        "data": {
+                          "resultType": "matrix",
+                          "result": [
+                            {
+                              "metric": {
+                                "__name__": "Measure_10m_Avg",
+                                "t_id": "122"
+                              },
+                              "values": [
+                                [
+                                  ${start.toEpochMilli() / 1000},
+                                  "28000"
+                                ]
+                              ]
+                            }
+                          ]
+                        }
+                      }
+
+                 """)
+             }
+        result <- transformedQuery >>= Chronos.query
+      } yield result.map.toList)(
+        equalTo(
+          List[(QueryKey, TimeSeries[Double])](
+            (QueryKey("Measure_10m_Avg", Map("t_id" -> "122")), TSEntry(start.toEpochMilli(), 28000, interval10mMs)),
+            (
+              QueryKey("Measure_10m_Avg", Map("t_id" -> "122")),
+              TSEntry(start.minusSeconds(6000).toEpochMilli(), 28000, interval10mMs)
+            ),
+            (QueryKey("SELECTED", Map("t_id" -> "122")), TSEntry(start.toEpochMilli(), 28000, interval10mMs))
+          )
+        ).negate
+      )
+    },
+    testM("advanced mapping") {
+      val aggregationLabel = """Measure_SUM"""
+
+      val query = testQuery(label1) + testQuery(label2) + testQuery(label3)
+
+      val transformedQuery = query
+        .transform(aggregationLabel, start, end, 1.minute.toSeconds.toInt) {
+          case (intermediate, _) =>
+            List(label1, label2, label3)
+              .map(label => intermediate.getByQueryKey(label))
+              .collect {
+                case Some(ts) => ts
+              }
+              // strict = false because the base time series is an EmptyTimeSeries
+              .foldLeft(EmptyTimeSeries: TimeSeries[Double])(_.plus(_, strict = false))
         }
 
       assertM(
-        (for {
-          _ <- whenAnyRequest.thenRespond(
-                 Source
-                   .fromResource("responses/multipleMetrics.json")
-                   .mkString
-               )
+        for {
+          _ <- whenRequestMatchesPartial {
+                 case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
+                   val key = createResponse(debug(content).find(_._1 == "query").get._2)
+                   Response.ok(TestUtils.responseFor(key.key, key.tags))
+               }
           result <- transformedQuery >>= Chronos.query
-        } yield result).run
-      )(succeeds(anything))
+        } yield result
+      )(
+        equalTo(
+          Result(
+            Map(
+              QueryKey("Measure_10m_Avg", Map("t_id" -> "122")) -> simpleMetricResult,
+              QueryKey("Measure_10m_Avg", Map("t_id" -> "117")) -> simpleMetricResult,
+              QueryKey("Measure_10m_Avg", Map("t_id" -> "45")) -> simpleMetricResult,
+              QueryKey("Measure_SUM", Map[String, String]()) -> simpleMetricResult
+                .plus(simpleMetricResult)
+                .plus(simpleMetricResult)
+            )
+          )
+        )
+      )
     }
   ).provideLayer(chronosClient)
 }

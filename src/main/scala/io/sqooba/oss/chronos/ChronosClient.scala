@@ -54,14 +54,24 @@ class ChronosClient(
 
         // First execute the underlying, then apply the transform function.
         case Query.Transform(id, underlying, f) =>
-          loop(result, underlying).map(underlyingResult => f(underlyingResult, id))
+          loop(result, underlying).map { underlyingResult =>
+            /*
+              Transform uses the timeseries queries so far and return a new timeseries to insert.
+              It is represented by Result => TimeSeries[Double]
+              In the following code, we take care of flattening the result that we got so far as well as
+              inserting the newly computed timeseries into the intermediate result for future usage.
+             */
+            val flattenedResults = underlyingResult.values.foldLeft(Result(Map()))(_ + _)
+            val ts               = f(flattenedResults, id)
+            underlyingResult ++ Map(id -> Result(Map(id.key -> ts)))
+          }
 
         case Query.Empty => IO.succeed(result)
       }
 
     // Start the recursion with an empty intermediate-results map.
     // At then end, flatten the map to the result type.
-    loop(Map(), query).map(i => Result(i.values.flatMap(_.map).toMap))
+    loop(Map(), query).map(i => i.values.foldLeft(Result(Map()))(_ + _))
   }
 
   private def executeRangeQuery(

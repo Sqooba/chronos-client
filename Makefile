@@ -21,4 +21,4 @@ snapshot:
 
 # Do a +publishLocal if you need it in your local .ivy2 repo
 release-local:
-	sbt 'set version := "$(VERSION)"' +publishM2
+	sbt 'set version := "$(VERSION)"' +publishM2 +publishLocal
