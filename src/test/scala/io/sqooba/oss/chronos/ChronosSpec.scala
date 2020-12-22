@@ -219,7 +219,7 @@ object ChronosSpec extends DefaultRunnableSpec {
         )
 
       val transformedQuery = query
-        .transform(aggregationLabel, start, end, 1.minute.toSeconds.toInt) {
+        .transform(aggregationLabel, start, end, 1.minute) {
           case (intermediate, _) =>
             intermediate
               .getByQueryKey(label1)
@@ -275,7 +275,7 @@ object ChronosSpec extends DefaultRunnableSpec {
       val query = testQuery(label1) + testQuery(label2) + testQuery(label3)
 
       val transformedQuery = query
-        .transform(aggregationLabel, start, end, 1.minute.toSeconds.toInt) {
+        .transform(aggregationLabel, start, end, 1.minute) {
           case (intermediate, _) =>
             List(label1, label2, label3)
               .map(label => intermediate.getByQueryKey(label))

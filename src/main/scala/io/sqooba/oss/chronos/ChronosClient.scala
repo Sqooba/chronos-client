@@ -10,8 +10,6 @@ import io.sqooba.oss.timeseries.immutable.TSEntry
 import zio.{ IO, Task, TaskLayer, ULayer, URLayer, ZLayer }
 import io.sqooba.oss.promql.{ MatrixResponseData, PrometheusClient, PrometheusService }
 
-import scala.concurrent.duration._
-
 /**
  * Implementation of the [[Chronos.ChronosService]]. Performs query deduplication in a
  * single query tree for queries that have the same key, start, end and sampling step.
@@ -110,7 +108,7 @@ object ChronosClient {
                   .ofOrderedEntriesSafe(
                     matrixMetric.values.map {
                       case (ts, value) =>
-                        TSEntry(ts.toEpochMilli, value.toDouble, queryId.step.seconds.toMillis)
+                        TSEntry(ts.toEpochMilli, value.toDouble, queryId.step.toMillis)
                     }
                   )
                   .trimRight(queryId.end.toEpochMilli)

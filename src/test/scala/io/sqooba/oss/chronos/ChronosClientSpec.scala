@@ -103,7 +103,7 @@ object ChronosClientSpec extends DefaultRunnableSpec {
           val data = MatrixResponseData(List(MatrixMetric(Map(), List())))
           assertM(
             (for {
-              query <- TestUtils.testQuery("LABEL", 10.minutes.toSeconds.toInt)
+              query <- TestUtils.testQuery("LABEL", 10.minutes)
               ts    <- ChronosClient.toTs(query.id, data)
             } yield ts).run
           )(
@@ -135,7 +135,7 @@ object ChronosClientSpec extends DefaultRunnableSpec {
           )
           assertM(
             for {
-              query <- TestUtils.testQuery("LABEL", sampling.toSeconds.toInt)
+              query <- TestUtils.testQuery("LABEL", sampling)
               ts    <- ChronosClient.toTs(query.id, data)
             } yield ts
           )(equalTo(result))
@@ -166,7 +166,7 @@ object ChronosClientSpec extends DefaultRunnableSpec {
           )
           assertM(
             for {
-              query <- TestUtils.testQuery("""label{tag="value"}""", sampling.toSeconds.toInt)
+              query <- TestUtils.testQuery("""label{tag="value"}""", sampling)
               ts    <- ChronosClient.toTs(query.id, data)
             } yield ts
           )(equalTo(result))
@@ -176,7 +176,7 @@ object ChronosClientSpec extends DefaultRunnableSpec {
           val data     = MatrixResponseData(List(MatrixMetric(Map(), List())))
 
           assertM((for {
-            query <- TestUtils.testQuery("""sum(label{tag="value"})""", sampling.toSeconds.toInt)
+            query <- TestUtils.testQuery("""sum(label{tag="value"})""", sampling)
             ts    <- ChronosClient.toTs(query.id, data)
           } yield ts).run)(
             fails(isSubtype[ChronosError](anything))
@@ -223,7 +223,7 @@ object ChronosClientSpec extends DefaultRunnableSpec {
           )
           assertM(
             for {
-              query <- TestUtils.testQuery("""label{tag=~"value1|value2"}""", sampling.toSeconds.toInt)
+              query <- TestUtils.testQuery("""label{tag=~"value1|value2"}""", sampling)
               ts    <- ChronosClient.toTs(query.id, data)
             } yield ts
           )(equalTo(result))

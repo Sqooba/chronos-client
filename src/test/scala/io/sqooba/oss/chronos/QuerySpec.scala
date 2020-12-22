@@ -4,6 +4,7 @@ import zio.test._
 import zio.test.Assertion._
 import TestUtils._
 import Query._
+import scala.concurrent.duration._
 
 object QuerySpec extends DefaultRunnableSpec {
   val spec = suite("QuerySpec")(
@@ -26,10 +27,10 @@ object QuerySpec extends DefaultRunnableSpec {
           equalTo(
             Group.of(
               Group.of(
-                Range(Qid(QueryKey("A", Map()), start, end, 60), None),
-                Range(Qid(QueryKey("B", Map()), start, end, 60), None)
+                Range(Qid(QueryKey("A", Map()), start, end, 60.seconds), None),
+                Range(Qid(QueryKey("B", Map()), start, end, 60.seconds), None)
               ),
-              Range(Qid(QueryKey("C", Map()), start, end, 60), None)
+              Range(Qid(QueryKey("C", Map()), start, end, 60.seconds), None)
             )
           )
         )

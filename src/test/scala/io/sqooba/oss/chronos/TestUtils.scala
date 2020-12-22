@@ -1,11 +1,12 @@
 package io.sqooba.oss.chronos
 
 import java.time.Instant
-
 import io.sqooba.oss.chronos.Chronos.ChronosService
 import io.sqooba.oss.promql.{ PrometheusClient, PrometheusClientConfig }
 import sttp.client.asynchttpclient.zio.{ AsyncHttpClientZioBackend, SttpClientStubbing }
 import zio.{ IO, ULayer, ZLayer }
+
+import scala.concurrent.duration.FiniteDuration
 import scala.io.Source
 
 object TestUtils {
@@ -36,7 +37,7 @@ object TestUtils {
       end
     )
 
-  def testQuery(label: String, sampling: Int): IO[InvalidQueryError, Query.Range] =
+  def testQuery(label: String, sampling: FiniteDuration): IO[InvalidQueryError, Query.Range] =
     Query.fromString(
       label,
       start,
