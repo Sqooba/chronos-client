@@ -132,7 +132,7 @@ object ChronosSpec extends DefaultRunnableSpec {
                  case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
                    val key = createResponse(debug(content).find(_._1 == "query").get._2)
                    Response.ok(
-                     TestUtils.responseFor(key.key, key.tags)
+                     TestUtils.responseFor(key.name, key.tags)
                    )
                }
           query  <- testQuery(label1) + testQuery(label2) + testQuery(label3)
@@ -291,7 +291,7 @@ object ChronosSpec extends DefaultRunnableSpec {
           _ <- whenRequestMatchesPartial {
                  case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
                    val key = createResponse(debug(content).find(_._1 == "query").get._2)
-                   Response.ok(TestUtils.responseFor(key.key, key.tags))
+                   Response.ok(TestUtils.responseFor(key.name, key.tags))
                }
           result <- transformedQuery >>= Chronos.query
         } yield result

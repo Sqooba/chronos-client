@@ -1,28 +1,41 @@
 package io.sqooba.oss.chronos
 
+import io.sqooba.oss.chronos.QueryKey.optionFromPromQuery
 import io.sqooba.oss.promql.metrics.MatrixMetric
 import io.sqooba.oss.timeseries.entity.{ TsId, TsLabel }
 import zio.IO
 
 /**
- * Identifies a PromQL query string. I.e. a combination of a label and tags (or possibly
- * an aggregate query) but no timestamps, delimiters etc.
+ * Identifies a PromQL query string. I.e. a combination of a label/name and tags (or
+ * possibly an aggregate query) but no timestamps, delimiters etc.
  */
-final case class QueryKey(key: String, tags: Map[String, String]) {
+final case class QueryKey(name: String, tags: Map[String, String]) {
 
   /**
-   * Checks whether this Key corresponds to the given TsId.
-   *
-   * For this, the label has to match the key-string and the tags of the entityId need
-   * to be a subset of the tags of the queryKey.
+   * Checks whether this QueryKey matches the given TsId. The names have to be equal and
+   * the given tsId's tags need to be a subset of the tags of this QueryKey's tags.
    */
   def matches(tsId: TsId[_]): Boolean = tsId match {
     case TsId(entityId: ChronosEntityId, TsLabel(label)) =>
-      label == key && (entityId.tags.toSet -- tags).isEmpty
+      matches(QueryKey(label, entityId.tags))
     case _ => false
   }
 
-  def toPromQuery: String = s"""$key${QueryKey.tagsToPromQuery(tags)}"""
+  /**
+   * Checks whether this QueryKey matches the given raw key. The names have to be equal and
+   * the given key's tags need to be a subset of the tags of this QueryKey's tags.
+   */
+  def matches(key: String): Boolean =
+    optionFromPromQuery(key).exists(matches)
+
+  /**
+   * Checks whether this QueryKey matches the given key. The names have to be equal and
+   * the given key's tags need to be a subset of the tags of this QueryKey's tags.
+   */
+  def matches(other: QueryKey): Boolean =
+    other.name == this.name && (other.tags.toSet -- this.tags).isEmpty
+
+  def toPromQuery: String = s"""$name${QueryKey.tagsToPromQuery(tags)}"""
 }
 
 object QueryKey {
@@ -30,17 +43,21 @@ object QueryKey {
   private val tagsExtractors = """([0-9A-Za-z_="]+)="([^\}|"}]+)",?""".r
 
   def fromPromQuery(raw: String): IO[InvalidQueryError, QueryKey] =
+    IO.fromOption(optionFromPromQuery(raw))
+      .orElseFail(InvalidQueryError(f"Unable to extract a key and tags from $raw"))
+
+  def optionFromPromQuery(raw: String): Option[QueryKey] =
     raw match {
-      // scalafmt: off
-      case pattern(label, null) =>
-        IO.succeed(QueryKey(label, Map()))
-      // scalafmt: on
+      // scalastyle:off
+      case pattern(name, null) =>
+        Some(QueryKey(name, Map()))
+      // scalastyle:on
 
-      case pattern(label, tags) =>
+      case pattern(name, tags) =>
         val rawTags = tagsExtractors.findAllMatchIn(tags).map(m => (m.group(1), m.group(2))).toMap
-        IO.succeed(QueryKey(label, rawTags))
+        Some(QueryKey(name, rawTags))
 
-      case _ => IO.fail(InvalidQueryError(f"Unable to extract a key and tags from $raw"))
+      case _ => None
     }
 
   def fromTsId[I <: ChronosEntityId](tsId: TsId[I]): QueryKey =

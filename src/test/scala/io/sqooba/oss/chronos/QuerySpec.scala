@@ -4,9 +4,17 @@ import zio.test._
 import zio.test.Assertion._
 import TestUtils._
 import Query._
+import io.sqooba.oss.timeseries.entity.{ TsId, TsLabel }
+import io.sqooba.oss.timeseries.immutable.TSEntry
+
 import scala.concurrent.duration._
 
 object QuerySpec extends DefaultRunnableSpec {
+
+  case class Id(id: Int) extends ChronosEntityId {
+    def tags: Map[String, String] = Map("id" -> id.toString)
+  }
+
   val spec = suite("QuerySpec")(
     suite("And combinator")(
       test("+ should link two queries together") {
@@ -41,6 +49,33 @@ object QuerySpec extends DefaultRunnableSpec {
         assert(Query.apply())(equalTo(Empty)) &&
         assert(Query.apply(Empty))(equalTo(Empty)) &&
         assert(Query.apply(Empty, Empty))(equalTo(Group(Seq(Empty, Empty))))
+      }
+    ),
+    suite("Result")(
+      test("should be retrieved for matching tsid with a subset of tags") {
+        val tsId = TsId(Id(123), TsLabel("label"))
+        val ts   = TSEntry(1, 1.23, 1)
+        assert(
+          Query
+            .Result(
+              Map(
+                QueryKey("label", Map("id" -> "123", "additionalTag" -> "returnedByBackend")) -> ts
+              )
+            )
+            .getByTsId(tsId)
+        )(equalTo(Some(ts)))
+      },
+      test("should be retrieved for matching key with a subset of tags") {
+        val ts = TSEntry(1, 1.23, 1)
+        assert(
+          Query
+            .Result(
+              Map(
+                QueryKey("label", Map("id" -> "123", "additionalTag" -> "returnedByBackend")) -> ts
+              )
+            )
+            .getByQueryKey("""label{id="123"}""")
+        )(equalTo(Some(ts)))
       }
     )
   )

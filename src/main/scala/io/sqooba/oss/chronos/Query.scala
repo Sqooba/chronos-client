@@ -59,7 +59,7 @@ sealed trait Query { self =>
     start: Instant,
     end: Instant
   )(f: TransformFunction): Query =
-    transform(key, start, end, getStep(key.key))(f)
+    transform(key, start, end, getStep(key.name))(f)
 
   /** See $$transformLink, with a raw string label. */
   def transform(
@@ -211,7 +211,7 @@ object Query {
 
     /** Get a time series from the result, indexed by string key. */
     def getByQueryKey(key: String): Option[TimeSeries[Double]] =
-      map.find(_._1.toPromQuery == key).map(_._2)
+      map.find(_._1.matches(key)).map(_._2)
 
     /**
      * Get a time series from the result, indexed by string key. Returns an empty
