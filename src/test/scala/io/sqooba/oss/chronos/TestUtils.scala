@@ -27,8 +27,12 @@ object TestUtils {
         PrometheusClient.live >+> ChronosClient.live
     ).orDie
 
-  val start: Instant = Instant.parse("2020-10-12T14:00:00Z")
-  val end: Instant   = Instant.parse("2020-10-12T15:23:00Z")
+  case class TestId(id: Int) extends ChronosEntityId {
+    def tags: Map[String, String] = Map("id" -> id.toString)
+  }
+
+  val start: Instant = Instant.parse("2020-08-26T12:00:00Z")
+  val end: Instant   = Instant.parse("2020-08-26T14:23:00Z")
 
   def testQuery(label: String): IO[InvalidQueryError, Query.Range] =
     Query.fromString(

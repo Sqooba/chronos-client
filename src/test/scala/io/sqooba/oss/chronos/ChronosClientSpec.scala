@@ -7,11 +7,9 @@ import scala.concurrent.duration._
 import io.sqooba.oss.promql.MatrixResponseData
 import io.sqooba.oss.promql.metrics.MatrixMetric
 import io.sqooba.oss.timeseries.TimeSeries
-import io.sqooba.oss.timeseries.immutable.TSEntry
-
+import io.sqooba.oss.timeseries.immutable.{ EmptyTimeSeries, TSEntry }
 import io.sqooba.oss.chronos.TestUtils.chronosClient
 import sttp.client.asynchttpclient.zio.stubbing._
-import Query._
 
 import scala.io.Source
 import zio.ZIO
@@ -31,7 +29,7 @@ object ChronosClientSpec extends DefaultRunnableSpec {
           query <- TestUtils.testQuery("label")
           resp  <- Chronos.query(query)
         } yield resp
-        assertM(scenario)(equalTo(Result(Map())))
+        assertM(scenario)(equalTo(QueryResult(Map())))
       },
       testM("Should correctly convert response for a single metric") {
         val scenario = for {
@@ -46,7 +44,7 @@ object ChronosClientSpec extends DefaultRunnableSpec {
         } yield resp
         assertM(scenario)(
           equalTo(
-            Result(
+            QueryResult(
               Map(
                 QueryKey("Measure_10m_Avg", Map("t_id" -> "122")) ->
                   TimeSeries(
@@ -74,7 +72,7 @@ object ChronosClientSpec extends DefaultRunnableSpec {
         } yield resp
         assertM(scenario)(
           equalTo(
-            Result(
+            QueryResult(
               Map(
                 QueryKey("Measure_10m_Avg", Map("t_id" -> "122")) ->
                   TimeSeries(
@@ -102,12 +100,14 @@ object ChronosClientSpec extends DefaultRunnableSpec {
         testM("Convert empty data") {
           val data = MatrixResponseData(List(MatrixMetric(Map(), List())))
           assertM(
-            (for {
+            for {
               query <- TestUtils.testQuery("LABEL", 10.minutes)
               ts    <- ChronosClient.toTs(query.id, data)
-            } yield ts).run
+            } yield ts
           )(
-            fails(isSubtype[IdParsingError](anything))
+            equalTo(
+              QueryResult(Map(QueryKey("LABEL", Map()) -> EmptyTimeSeries))
+            )
           )
         },
         testM("Convert a single data result") {
@@ -123,7 +123,7 @@ object ChronosClientSpec extends DefaultRunnableSpec {
               )
             )
           )
-          val result = Result(
+          val result = QueryResult(
             Map(
               QueryKey("LABEL", Map()) -> TimeSeries(
                 Seq(
@@ -153,7 +153,7 @@ object ChronosClientSpec extends DefaultRunnableSpec {
               )
             )
           )
-          val result = Result(
+          val result = QueryResult(
             Map(
               QueryKey("label", Map("returnedTag" -> "returnedValue")) ->
                 TimeSeries(
@@ -203,7 +203,7 @@ object ChronosClientSpec extends DefaultRunnableSpec {
             )
           )
 
-          val result = Result(
+          val result = QueryResult(
             Map(
               QueryKey("label", Map("tag" -> "value1")) ->
                 TimeSeries(

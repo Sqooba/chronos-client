@@ -1,6 +1,5 @@
 package io.sqooba.oss.chronos
 
-import io.sqooba.oss.chronos.Query.Result
 import zio.{ Has, IO, ZIO }
 
 /**
@@ -19,7 +18,7 @@ object Chronos {
      *
      * See [[Query]] for details on how to construct queries.
      */
-    def query(query: Query): IO[ChronosError, Result]
+    def query(query: Query): IO[ChronosError, QueryResult]
   }
 
   /**
@@ -29,6 +28,6 @@ object Chronos {
    *
    * See [[Query]] for details on how to construct queries.
    */
-  def query(query: Query): ZIO[ChronosService, ChronosError, Result] =
+  def query(query: Query): ZIO[ChronosService, ChronosError, QueryResult] =
     ZIO.accessM(_.get.query(query))
 }

@@ -7,7 +7,6 @@ import io.sqooba.oss.timeseries.TimeSeries
 
 import scala.concurrent.duration._
 import io.sqooba.oss.timeseries.entity.TsId
-import io.sqooba.oss.timeseries.immutable.EmptyTimeSeries
 import zio.IO
 
 // Very ugly way of defining the scaladoc link to the original transform function.
@@ -50,7 +49,7 @@ sealed trait Query { self =>
     start: Instant,
     end: Instant,
     step: FiniteDuration
-  )(f: TransformFunction): Query =
+  )(f: TransformFunction): Query.Transform =
     Query.Transform(Qid(key, start, end, step), self, f)
 
   /** See $$transformLink, with inferred step. */
@@ -58,7 +57,7 @@ sealed trait Query { self =>
     key: QueryKey,
     start: Instant,
     end: Instant
-  )(f: TransformFunction): Query =
+  )(f: TransformFunction): Query.Transform =
     transform(key, start, end, getStep(key.name))(f)
 
   /** See $$transformLink, with a raw string label. */
@@ -67,7 +66,7 @@ sealed trait Query { self =>
     start: Instant,
     end: Instant,
     step: FiniteDuration
-  )(f: TransformFunction): Query =
+  )(f: TransformFunction): Query.Transform =
     transform(QueryKey(label, Map()), start, end, step)(f)
 
   /** See $$transformLink, with a raw string label and inferred step. */
@@ -75,7 +74,7 @@ sealed trait Query { self =>
     label: String,
     start: Instant,
     end: Instant
-  )(f: TransformFunction): Query =
+  )(f: TransformFunction): Query.Transform =
     transform(QueryKey(label, Map()), start, end)(f)
 
   /** See $$transformLink, with a new tsId. */
@@ -84,7 +83,7 @@ sealed trait Query { self =>
     start: Instant,
     end: Instant,
     step: FiniteDuration
-  )(f: TransformFunction): Query =
+  )(f: TransformFunction): Query.Transform =
     transform(QueryKey.fromTsId(tsId), start, end, step)(f)
 
   /** See $$transformLink, with a new tsId and inferred step. */
@@ -92,7 +91,7 @@ sealed trait Query { self =>
     tsId: TsId[I],
     start: Instant,
     end: Instant
-  )(f: TransformFunction): Query =
+  )(f: TransformFunction): Query.Transform =
     transform(QueryKey.fromTsId(tsId), start, end)(f)
 }
 
@@ -118,7 +117,7 @@ object Query {
       start: Instant,
       end: Instant,
       step: FiniteDuration
-    )(f: TransformFunction): IO[InvalidQueryError, Query] =
+    )(f: TransformFunction): IO[InvalidQueryError, Query.Transform] =
       self.map(_.transform(key, start, end, step)(f))
 
     /** See $$transformLink, with inferred step. */
@@ -126,7 +125,7 @@ object Query {
       key: QueryKey,
       start: Instant,
       end: Instant
-    )(f: TransformFunction): IO[InvalidQueryError, Query] =
+    )(f: TransformFunction): IO[InvalidQueryError, Query.Transform] =
       self.map(_.transform(key, start, end)(f))
 
     /** See $$transformLink,  with a raw string label. */
@@ -135,7 +134,7 @@ object Query {
       start: Instant,
       end: Instant,
       step: FiniteDuration
-    )(f: TransformFunction): IO[InvalidQueryError, Query] =
+    )(f: TransformFunction): IO[InvalidQueryError, Query.Transform] =
       self.map(_.transform(label, start, end, step)(f))
 
     /** See $$transformLink, with a raw string label and inferred step. */
@@ -143,7 +142,7 @@ object Query {
       label: String,
       start: Instant,
       end: Instant
-    )(f: TransformFunction): IO[InvalidQueryError, Query] =
+    )(f: TransformFunction): IO[InvalidQueryError, Query.Transform] =
       self.map(_.transform(label, start, end)(f))
 
     /** See $$transformLink, with a new tsId. */
@@ -152,7 +151,7 @@ object Query {
       start: Instant,
       end: Instant,
       step: FiniteDuration
-    )(f: TransformFunction): IO[InvalidQueryError, Query] =
+    )(f: TransformFunction): IO[InvalidQueryError, Query.Transform] =
       self.map(_.transform(tsId, start, end, step)(f))
 
     /** See $$transformLink, with a new tsId and inferred step. */
@@ -160,7 +159,7 @@ object Query {
       tsId: TsId[I],
       start: Instant,
       end: Instant
-    )(f: TransformFunction): IO[InvalidQueryError, Query] =
+    )(f: TransformFunction): IO[InvalidQueryError, Query.Transform] =
       self.map(_.transform(tsId, start, end)(f))
   }
 
@@ -171,59 +170,28 @@ object Query {
   implicit class IORangeQuery(self: IO[InvalidQueryError, Query.Range]) {
 
     /** See [[io.sqooba.oss.chronos.Query.Range!.transform(key*]]. */
-    def transform(key: QueryKey)(f: TransformFunction): IO[InvalidQueryError, Query] =
+    def transform(key: QueryKey)(f: TransformFunction): IO[InvalidQueryError, Query.Transform] =
       self.map(_.transform(key)(f))
 
     /** See [[io.sqooba.oss.chronos.Query.Range!.transform(key*]], with a raw string label. */
-    def transform(label: String)(f: TransformFunction): IO[InvalidQueryError, Query] =
+    def transform(label: String)(f: TransformFunction): IO[InvalidQueryError, Query.Transform] =
       self.map(_.transform(label)(f))
 
     /** See [[io.sqooba.oss.chronos.Query.Range!.transform(key*]], with a new tsId. */
-    def transform[I <: ChronosEntityId](tsId: TsId[I])(f: TransformFunction): IO[InvalidQueryError, Query] =
+    def transform[I <: ChronosEntityId](tsId: TsId[I])(f: TransformFunction): IO[InvalidQueryError, Query.Transform] =
       self.map(_.transform(tsId)(f))
-  }
 
-  /** Represents the result of a query. */
-  final case class Result(map: Map[QueryKey, TimeSeries[Double]]) {
+    /** See [[io.sqooba.oss.chronos.Query.Range!.function(key*]]. */
+    def function(key: QueryKey, f: QueryFunction): IO[InvalidQueryError, Query.Function] =
+      self.map(_.function(key, f))
 
-    /** Get a time series from the result, indexed by matching TsId. */
-    def getByTsId(tsId: TsId[_]): Option[TimeSeries[Double]] =
-      map.find(_._1.matches(tsId)).map(_._2)
+    /** See [[io.sqooba.oss.chronos.Query.Range!.function(key*]], with a raw string label. */
+    def function(label: String, f: QueryFunction): IO[InvalidQueryError, Query.Function] =
+      self.map(_.function(label, f))
 
-    /**
-     * Get a time series from the result, indexed by matching TsId. Returns an empty
-     * time series if there is no data for the given TsId.
-     */
-    def getByTsIdOrEmpty(tsId: TsId[_]): TimeSeries[Double] =
-      getByTsId(tsId).getOrElse(EmptyTimeSeries)
-
-    // Why is there no `byTsId` method that returns a `Map[TsId, TimeSeries[Double]]`?
-    //
-    // The reason is that this library cannot create `ChronosEntityId`s. It only defines
-    // the trait but the users provide the implementation. Now, in order to create a
-    // TsId from just the information we get returned by a query, we cannot recreate the
-    // entity id that will equal (in its type) the one of the user.
-    //
-    // If, in the future, this becomes a problem, one could keep TsIds around with which
-    // the queries are created, then match those to the returned data and use them. But
-    // unless, the entity Id design significantly changes, it will stay impossible to
-    // create entity ids from scratch in the library.
-
-    /** Get a time series from the result, indexed by string key. */
-    def getByQueryKey(key: String): Option[TimeSeries[Double]] =
-      map.find(_._1.matches(key)).map(_._2)
-
-    /**
-     * Get a time series from the result, indexed by string key. Returns an empty
-     * time series if there is no data for the given TsId.
-     */
-    def getByQueryKeyOrEmpty(key: String): TimeSeries[Double] =
-      getByQueryKey(key).getOrElse(EmptyTimeSeries)
-
-    def byQueryKey: Map[String, TimeSeries[Double]] =
-      map.map { case (key, value) => (key.toPromQuery, value) }
-
-    def +(other: Result): Result = Result(map ++ other.map)
+    /** See [[io.sqooba.oss.chronos.Query.Range!.function(key*]], with a new tsId. */
+    def function[I <: ChronosEntityId](tsId: TsId[I], f: QueryFunction): IO[InvalidQueryError, Query.Function] =
+      self.map(_.function(tsId, f))
   }
 
   /**
@@ -237,6 +205,9 @@ object Query {
    */
   final case class Qid(key: QueryKey, start: Instant, end: Instant, step: FiniteDuration)
 
+  type IntermediateResult = Map[Qid, QueryResult]
+  type TransformFunction  = (QueryResult, Qid) => TimeSeries[Double]
+
   /** the empty query */
   final case object Empty extends Query
 
@@ -249,13 +220,54 @@ object Query {
     def of(one: Query, two: Query, more: Query*): Group = Group(Seq(one, two) ++ more)
   }
 
+  /** Transforms an underlying query with the given function. */
+  final case class Transform(
+    id: Qid,
+    underlying: Query,
+    f: TransformFunction
+  ) extends Query
+
+  trait ExecutableQuery extends Query {
+
+    /**
+     * Identifies this query.
+     *
+     * @note the query key of the id does not necessarily correspond to the query string
+     * that is sent to prometheus. It can also be the id that was set by the user to
+     * identify the result.
+     */
+    def id: Qid
+
+    /** Convert this query to an underlying PromQL range query. */
+    def toPromQl: promql.RangeQuery
+
+    /**
+     * Transform this query with the given transform function and attach a new label to it
+     * so that the result can be identified later.
+     *
+     * @param key that identifies the result of the transformed query
+     * @param f   function that transforms the result of this query to the transformed
+     *            query. It is also passed the query properties [[Qid]] of the transformed
+     *            query.
+     */
+    def transform(key: QueryKey)(f: TransformFunction): Query.Transform =
+      this.transform(key, id.start, id.end, id.step)(f)
+
+    /** See [[Range!.transform(key*]], with a raw string label. */
+    def transform(label: String)(f: TransformFunction): Query.Transform =
+      this.transform(label, id.start, id.end, id.step)(f)
+
+    /** See [[Range!.transform(key*]], with a new tsId. */
+    def transform[I <: ChronosEntityId](tsId: TsId[I])(f: TransformFunction): Query.Transform =
+      this.transform(tsId, id.start, id.end, id.step)(f)
+  }
+
   /** the base type for queries, fetches a time range of a given query key */
   final case class Range(
     id: Qid,
     timeout: Option[FiniteDuration]
-  ) extends Query {
+  ) extends ExecutableQuery {
 
-    /** Convert this query to an underlying PromQL range query. */
     def toPromQl: promql.RangeQuery =
       promql.RangeQuery(
         id.key.toPromQuery,
@@ -266,34 +278,34 @@ object Query {
       )
 
     /**
-     * Transform this query with the given transform function and set its new label.
+     * Apply a PromQL function to this query and attach a new label to it so that the
+     * result can be identified later.
      *
-     * @param key  that identifies the transformed query
-     * @param f    function that transforms the result of this query to the transformed
-     *             query. It is also passed the query properties [[Qid]] of the transformed
-     *             query.
+     * @param key that identifies the result of the query with the function applied
+     * @param f   a PromQL query function
      */
-    def transform(key: QueryKey)(f: TransformFunction): Query =
-      this.transform(key, id.start, id.end, id.step)(f)
+    def function(key: QueryKey, f: QueryFunction): Query.Function =
+      Query.Function(this.id.copy(key = key), this, f)
 
-    /** See [[Range!.transform(key*]], with a raw string label. */
-    def transform(label: String)(f: TransformFunction): Query =
-      this.transform(label, id.start, id.end, id.step)(f)
+    /** See [[Range!.function(key*]], with a raw string label. */
+    def function(label: String, f: QueryFunction): Query.Function =
+      this.function(QueryKey(label, Map()), f)
 
-    /** See [[Range!.transform(key*]], with a new tsId. */
-    def transform[I <: ChronosEntityId](tsId: TsId[I])(f: TransformFunction): Query =
-      this.transform(tsId, id.start, id.end, id.step)(f)
+    /** See [[Range!.function(key*]], with a new tsId. */
+    def function[I <: ChronosEntityId](tsId: TsId[I], f: QueryFunction): Query.Function =
+      this.function(QueryKey.fromTsId(tsId), f)
   }
 
-  type IntermediateResult = Map[Qid, Result]
-  type TransformFunction  = (Result, Qid) => TimeSeries[Double]
-
   /** Transforms an underlying query with the given function. */
-  final case class Transform(
+  final case class Function(
     id: Qid,
-    underlying: Query,
-    f: TransformFunction
-  ) extends Query
+    underlying: Range,
+    function: QueryFunction
+  ) extends ExecutableQuery {
+
+    def toPromQl: promql.RangeQuery =
+      underlying.toPromQl.copy(query = s"$function(${underlying.toPromQl.query})")
+  }
 
   /**
    * Create a chronos query from an existing promql query

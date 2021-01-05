@@ -60,10 +60,14 @@ object ChronosSpec extends DefaultRunnableSpec {
           result <- Chronos.query(query)
         } yield result
       )(
-        hasField("map", (r: Result) => r.map(QueryKey("Measure_10m_Avg", Map("t_id" -> "122"))).isCompressed, isTrue) &&
+        hasField(
+          "map",
+          (r: QueryResult) => r.map(QueryKey("Measure_10m_Avg", Map("t_id" -> "122"))).isCompressed,
+          isTrue
+        ) &&
           hasField(
             "map",
-            (r: Result) => r.map(QueryKey("Measure_10m_Avg", Map("t_id" -> "122"))).isDomainContinuous,
+            (r: QueryResult) => r.map(QueryKey("Measure_10m_Avg", Map("t_id" -> "122"))).isDomainContinuous,
             isTrue
           )
       )
@@ -115,12 +119,12 @@ object ChronosSpec extends DefaultRunnableSpec {
             (
               QueryKey("Measure_10m_Avg", Map("t_id" -> "122")),
               TSEntry(
-                start.minusSeconds(6000).toEpochMilli(),
+                start.minusSeconds(6000).toEpochMilli,
                 28000.0,
                 interval10mMs
               )
             ),
-            (QueryKey("Measure_10m_Avg", Map("t_id" -> "122")), TSEntry(start.toEpochMilli(), 28000.0, interval10mMs))
+            (QueryKey("Measure_10m_Avg", Map("t_id" -> "122")), TSEntry(start.toEpochMilli, 28000.0, interval10mMs))
           )
         ).negate
       )
@@ -140,7 +144,7 @@ object ChronosSpec extends DefaultRunnableSpec {
         } yield result
       )(
         equalTo(
-          Result(
+          QueryResult(
             Map(
               QueryKey("Measure_10m_Avg", Map("t_id" -> "122")) -> simpleMetricResult,
               QueryKey("Measure_10m_Avg", Map("t_id" -> "117")) -> simpleMetricResult,
@@ -176,7 +180,7 @@ object ChronosSpec extends DefaultRunnableSpec {
         } yield result
       )(
         equalTo(
-          Result(
+          QueryResult(
             Map(
               QueryKey("Measure_10m_Avg", Map("t_id" -> "122")) -> simpleMetricResult,
               QueryKey("Measure_10m_Avg", Map("t_id" -> "117")) -> simpleMetricResult,
@@ -297,7 +301,7 @@ object ChronosSpec extends DefaultRunnableSpec {
         } yield result
       )(
         equalTo(
-          Result(
+          QueryResult(
             Map(
               QueryKey("Measure_10m_Avg", Map("t_id" -> "122")) -> simpleMetricResult,
               QueryKey("Measure_10m_Avg", Map("t_id" -> "117")) -> simpleMetricResult,

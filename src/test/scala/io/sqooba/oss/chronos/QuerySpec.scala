@@ -7,13 +7,10 @@ import Query._
 import io.sqooba.oss.timeseries.entity.{ TsId, TsLabel }
 import io.sqooba.oss.timeseries.immutable.TSEntry
 
+import java.time.Instant
 import scala.concurrent.duration._
 
 object QuerySpec extends DefaultRunnableSpec {
-
-  case class Id(id: Int) extends ChronosEntityId {
-    def tags: Map[String, String] = Map("id" -> id.toString)
-  }
 
   val spec = suite("QuerySpec")(
     suite("And combinator")(
@@ -51,31 +48,86 @@ object QuerySpec extends DefaultRunnableSpec {
         assert(Query.apply(Empty, Empty))(equalTo(Group(Seq(Empty, Empty))))
       }
     ),
-    suite("Result")(
-      test("should be retrieved for matching tsid with a subset of tags") {
-        val tsId = TsId(Id(123), TsLabel("label"))
-        val ts   = TSEntry(1, 1.23, 1)
+    suite("Query Functions")(
+      test("correct average query string")(
         assert(
           Query
-            .Result(
-              Map(
-                QueryKey("label", Map("id" -> "123", "additionalTag" -> "returnedByBackend")) -> ts
-              )
+            .fromTsId(
+              TsId(TestId(1234), TsLabel("complicate_label_123A")),
+              Instant.now().minusSeconds(1000),
+              Instant.now()
             )
-            .getByTsId(tsId)
-        )(equalTo(Some(ts)))
-      },
-      test("should be retrieved for matching key with a subset of tags") {
-        val ts = TSEntry(1, 1.23, 1)
+            .function("new_label", QueryFunction.AvgOverTime)
+            .toPromQl
+            .query
+        )(equalTo("""avg_over_time(complicate_label_123A{id="1234"})"""))
+      ),
+      testM("correct average query string with labels")(
+        for {
+          query <- Query
+                     .fromString(
+                       """ABCD_Dir_degrees{tag="abc", tag2="def"}""",
+                       Instant.now().minusSeconds(1000),
+                       Instant.now(),
+                       step = Some(5.minutes)
+                     )
+                     .function("new_label", QueryFunction.StddevOverTime)
+
+        } yield assert(
+          query.toPromQl.query
+        )(equalTo("""stddev_over_time(ABCD_Dir_degrees{tag="abc",tag2="def"})"""))
+      ),
+      test("correctly combines with other queries") {
+        val from = Instant.now().minusSeconds(1000)
+        val to   = Instant.now()
+
+        val f: TransformFunction = (_, _) => TSEntry(98, 76.54, 321)
         assert(
           Query
-            .Result(
-              Map(
-                QueryKey("label", Map("id" -> "123", "additionalTag" -> "returnedByBackend")) -> ts
-              )
+            .fromTsId(
+              TsId(TestId(1234), TsLabel("complicate_label_123A")),
+              from,
+              to,
+              step = Some(7.minutes)
             )
-            .getByQueryKey("""label{id="123"}""")
-        )(equalTo(Some(ts)))
+            .function(
+              TsId(TestId(99), TsLabel("intermediate_label")),
+              QueryFunction.MaxOverTime
+            )
+            .transform(
+              TsId(TestId(78), TsLabel("new_label_for_result"))
+            )(f)
+        )(
+          equalTo(
+            Query.Transform(
+              Qid(
+                QueryKey("new_label_for_result", Map("id" -> "78")),
+                from,
+                to,
+                7.minutes
+              ),
+              Query.Function(
+                Qid(
+                  QueryKey("intermediate_label", Map("id" -> "99")),
+                  from,
+                  to,
+                  7.minutes
+                ),
+                Query.Range(
+                  Qid(
+                    QueryKey("complicate_label_123A", Map("id" -> "1234")),
+                    from,
+                    to,
+                    7.minutes
+                  ),
+                  None
+                ),
+                QueryFunction.MaxOverTime
+              ),
+              f
+            )
+          )
+        )
       }
     )
   )

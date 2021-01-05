@@ -2,7 +2,7 @@ package io.sqooba.oss.chronos
 
 import com.typesafe.config.Config
 import io.sqooba.oss.chronos.Chronos.ChronosService
-import io.sqooba.oss.chronos.Query.{ IntermediateResult, Qid, Range, Result }
+import io.sqooba.oss.chronos.Query.{ ExecutableQuery, IntermediateResult, Qid }
 import io.sqooba.oss.promql.PrometheusService.PrometheusService
 import io.sqooba.oss.promql.metrics.MatrixMetric
 import io.sqooba.oss.timeseries.TimeSeries
@@ -23,7 +23,7 @@ class ChronosClient(
 
   def query(
     query: Query
-  ): IO[ChronosError, Result] = {
+  ): IO[ChronosError, QueryResult] = {
 
     // Recursively parses the query tree and executes leaf range queries and transforms.
     // Results are returned in the intermediate-results map which accumulates all range
@@ -41,12 +41,12 @@ class ChronosClient(
               } yield first ++ second
           }
 
-        // Leaf range queries are deduplicated by their Qid. If the query has already
-        // been executed once in this tree, the result is directly reused.
-        case query @ Query.Range(id, _) =>
+        // Leaf range/function queries are deduplicated by their Qid. If the query has
+        // already been executed once in this tree, the result is directly reused.
+        case query: ExecutableQuery =>
           result
-            .get(id)
-            .fold(executeRangeQuery(query)) { response =>
+            .get(query.id)
+            .fold(executeQuery(query)) { response =>
               IO.succeed(Map(query.id -> response))
             }
 
@@ -59,9 +59,9 @@ class ChronosClient(
               In the following code, we take care of flattening the result that we got so far as well as
               inserting the newly computed timeseries into the intermediate result for future usage.
              */
-            val flattenedResults = underlyingResult.values.foldLeft(Result(Map()))(_ + _)
+            val flattenedResults = underlyingResult.values.foldLeft(QueryResult(Map()))(_ ++ _)
             val ts               = f(flattenedResults, id)
-            underlyingResult ++ Map(id -> Result(Map(id.key -> ts)))
+            underlyingResult ++ Map(id -> QueryResult(Map(id.key -> ts)))
           }
 
         case Query.Empty => IO.succeed(result)
@@ -69,12 +69,10 @@ class ChronosClient(
 
     // Start the recursion with an empty intermediate-results map.
     // At then end, flatten the map to the result type.
-    loop(Map(), query).map(i => i.values.foldLeft(Result(Map()))(_ + _))
+    loop(Map(), query).map(i => i.values.foldLeft(QueryResult(Map()))(_ ++ _))
   }
 
-  private def executeRangeQuery(
-    query: Range
-  ): IO[ChronosError, IntermediateResult] = (
+  private def executeQuery(query: ExecutableQuery): IO[ChronosError, IntermediateResult] = (
     for {
       data <- PrometheusService
                 .query(query.toPromQl)
@@ -83,8 +81,8 @@ class ChronosClient(
                   case d: MatrixResponseData => d
                 }
 
-      tsData <- toTs(query.id, data)
-    } yield Map(query.id -> tsData)
+      queryResult <- toTs(query.id, data)
+    } yield Map(query.id -> queryResult)
   ).provide(promService)
 
 }
@@ -102,7 +100,11 @@ object ChronosClient {
     matrixMetric: MatrixMetric
   ): IO[ChronosError, (QueryKey, TimeSeries[Double])] =
     for {
-      key <- QueryKey.fromMatrixMetric(matrixMetric)
+      // If the query has a function, then the name is not returned and we fall back to
+      // the key of the original query.
+      key <- QueryKey.fromMatrixMetric(matrixMetric).catchSome {
+               case IdParsingError(_) => IO.succeed(queryId.key)
+             }
       data <- Task {
                 TimeSeries
                   .ofOrderedEntriesSafe(
@@ -111,7 +113,7 @@ object ChronosClient {
                         TSEntry(ts.toEpochMilli, value.toDouble, queryId.step.toMillis)
                     }
                   )
-                  .trimRight(queryId.end.toEpochMilli)
+                  .slice(queryId.start.toEpochMilli, queryId.end.toEpochMilli)
               }.orElseFail(
                 TimeSeriesDataError(s"Could not parse time series data from ${matrixMetric.values}")
               )
@@ -120,9 +122,9 @@ object ChronosClient {
   /**
    * See [[ChronosClient.toTs(q, m: MatrixMetric)]].
    */
-  private[chronos] def toTs(queryId: Qid, results: MatrixResponseData): IO[ChronosError, Result] =
+  private[chronos] def toTs(queryId: Qid, results: MatrixResponseData): IO[ChronosError, QueryResult] =
     IO.foreach(results.result)(m => toTs(queryId, m))
-      .map(r => Result(r.toMap))
+      .map(r => QueryResult(r.toMap))
 
   def live(
     prometheusService: PrometheusService
