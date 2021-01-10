@@ -41,157 +41,97 @@ For maven:
 In order to work properly, the client needs a valid PromQL-client configuration.
 This configuration is required to create a layer containing a `ChronosService` using one of the multiple helpers available in `ChronosClient`.
 
+## Examples
+
+Runnable examples are available under the `examples` directory in the `io.sqooba.oss.chronosExamples` package.
+
+In order to run those examples, a docker daemon is required. THey can be run using `sbt examples/text`.
+
 ## Queries
 
 The main query type of Chronos are `Range` queries, they can be grouped together or transformed using the operations available in
-[`Query.scala`](src/main/scala/io/sqooba/oss/chronos/Query.scala).
+[`Query.scala`](src/main/scala/io/sqooba/oss/chronos/Query.scala). Those snippets are taken from files available inside the `examples` project.
 
-Queries can be constructed as follows:
+Queries can be constructed as follows (see [BasicQueries](examples/src/test/scala/io/sqooba/oss/chronosExamples/BasicQueries.scala)):
 
 ```scala
-import java.time.Instant
-import io.sqooba.oss.promql.RangeQuery
-import io.sqooba.oss.chronos.{ChronosClient, Chronos, InvalidQueryError, Query}
-import zio.IO
-
-object Main extends zio.App {
-
-  def run(args: List[String]) = {
-    val start = Instant.now.minusSeconds(60)
-    val end = Instant.now
-
-    val layer = ChronosClient.liveDefault
-
-    val queryFromString: IO[InvalidQueryError, Query] =
-      Query.fromString(
-        """cpu{type="workstation"}""",
-        start,
-        end,
-        step = Some(10)
-      )
-    val queryFromProm: IO[InvalidQueryError, Query] =
-      Query.from(
-        RangeQuery(
-          """cpu{type="workstation"}""",
-          start,
-          end,
-          step = 10,
-          timeout = None
-        )
-      )
-    IO.unit.exitCode
-  }
-
-}
+val queryFromString: IO[InvalidQueryError, Query] =
+Query.fromString(
+  """cpu{type="workstation"}""",
+  start,
+  end,
+  step
+)
+val queryFromProm: IO[InvalidQueryError, Query] =
+Query.from(
+  RangeQuery(
+    """cpu{type="workstation"}""",
+    start,
+    end,
+    timeout = None
+  )
+)
 ```
 
-It is also possible to create a chronos query for a given [TsId][2]. Chronos introduced a new type `ChronosEntityId` that represents an entity compatible with Chronos.
+It is also possible to create a chronos query for a given [TsId][2].
+Chronos introduces a new type `ChronosEntityId` that represents an entity compatible with Chronos.
+A basic example can be found in [TimeSeriesEntityQuery](examples/src/test/scala/io/sqooba/oss/chronosExamples/TimeseriesEntityQuery.scala).
 
 ```scala
-import java.time.Instant
-import io.sqooba.oss.chronos.{
-  ChronosEntityId,
-  ChronosClient,
-  Chronos,
-  InvalidQueryError,
-  Query
+final case class Workstation(id: Long) extends ChronosEntityId {
+  override def tags: Map[String, String] =
+  Map("type" -> "workstation", "id" -> id.toString)
 }
-import zio.IO
-import io.sqooba.oss.timeseries.entity.TsLabel
-
-object Main extends zio.App {
-
-  def run(args: List[String]) = {
-    val start = Instant.now.minusSeconds(60)
-    val end = Instant.now
-
-    val layer = ChronosClient.liveDefault
-
-    final case class Workstation(id: Long) extends ChronosEntityId {
-
-      override def tags: Map[String, String] =
-        Map("type" -> "workstation", "id" -> id.toString)
-
-    }
-    val tsId = Workstation(1).buildTsId(TsLabel("cpu"))
-
-    val queryFromTsId: Query = Query.fromTsId(tsId, start, end, step = Some(10))
-    Chronos.query(query = queryFromTsId).provideLayer(layer).exitCode
-  }
-
-}
+val tsId = Workstation(1).buildTsId(TsLabel("cpu"))
+val queryFromTsId: Query = Query.fromTsId(tsId, start, end, step)
 ```
 
 This code will run the following query against the backend: `cpu{type="workstation", id="1"}`.
 
-More advanced queries can be built by using the `Group` and `Transform` features:
+More advanced queries can be built by using the `Group` and `Transform` features,
+as shown in [QueryTransformation](examples/src/test/scala/io/sqooba/oss/chronosExamples/QueryTransformation.scala):
 
 ```scala
-import java.time.Instant
-import io.sqooba.oss.chronos.{
-  ChronosEntityId,
-  ChronosClient,
-  Chronos,
-  InvalidQueryError,
-  Query
+final case class Room(name: String, workstations: Seq[Workstation]) extends ChronosEntityId {
+  override def tags: Map[String, String] =
+    Map("type" -> "room", "name" -> name)
 }
-import zio.IO
-import io.sqooba.oss.timeseries.entity.TsLabel
-import io.sqooba.oss.timeseries.TimeSeries
-import io.sqooba.oss.timeseries.immutable.EmptyTimeSeries
 
-object Main extends zio.App {
+val office = Room("office", (1L to 10).map(Workstation.apply))
 
-  def run(args: List[String]) = {
-    val start = Instant.now.minusSeconds(60 * 60 * 24 * 60)
-    val end = Instant.now
-    val label = TsLabel("cpu")
+val workStationQueries = office.workstations
+  .map(_.buildTsId(label))
+  .map(tsId => Query.fromTsId(tsId, start, end))
 
-    val layer = ChronosClient.liveDefault
-
-    final case class Workstation(id: Long) extends ChronosEntityId {
-      override def tags: Map[String, String] =
-        Map("type" -> "workstation", "id" -> id.toString)
-    }
-
-    final case class Room(name: String, workstations: Seq[Workstation])
-        extends ChronosEntityId {
-      override def tags: Map[String, String] =
-        Map("type" -> "room", "name" -> name)
-    }
-
-    val office = Room("office", (1L to 10).map(Workstation.apply))
-
-    val workStationQueries = office.workstations
-      .map(_.buildTsId(label))
-      .map(tsId => Query.fromTsId(tsId, start, end, step = Some(10)))
-
-    val groupedQueries = Query.group(workStationQueries: _*)
-    val transformedQueries = groupedQueries.transform(
-      office.buildTsId(label),
-      start,
-      end,
-      step = 10
-    ) { case (ir, _) =>
-      office.workstations
-        .map(_.buildTsId(label))
-        .map(tsid => ir.getByTsId(tsid))
-        .collect { case Some(ts) => ts }
-        .foldLeft(EmptyTimeSeries: TimeSeries[Double])(
-          _.plus(_, strict = false)
-        )
-    }
-
-    Chronos
-      .query(query = transformedQueries)
-      .provideLayer(layer)
-      .exitCode
-  }
-
+val groupedQueries = Query.group(workStationQueries: _*)
+val transformedQueries = groupedQueries.transform(
+  office.buildTsId(label),
+  start,
+  end,
+) { case (ir, _) =>
+  office.workstations
+    .map(_.buildTsId(label))
+    .map(tsid => ir.getByTsId(tsid))
+    .collect { case Some(ts) => ts }
+    .foldLeft(EmptyTimeSeries: TimeSeries[Double])(
+      _.plus(_, strict = false)
+    )
 }
 ```
 
 In this example, we are summing all `cpu` metrics from the workstation to create a new metric `cpu{type="room", name="office"}`.
+
+It is also possible to call _some_ of Prometheus' [query functions](https://prometheus.io/docs/prometheus/latest/querying/functions/).
+The currenly supported functions are defined in [`QueryFunction.scala`](src/main/scala/io/sqooba/oss/chronos/QueryFunction.scala).
+This is illustrated in [PromFunctionCall](examples/src/test/scala/io/sqooba/oss/chronosExamples/PromFunctionCall.scala):
+
+```scala
+val tsId        = workstation.buildTsId(TsLabel("cpu"))
+val avgLabel    = "avg_cpu"
+val avgQuery = Query
+  .fromTsId(tsId, start, end, step = Some(step))
+  .function(avgLabel, QueryFunction.AvgOverTime)
+```
 
 # Versions and releases
 

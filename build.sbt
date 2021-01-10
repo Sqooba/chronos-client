@@ -1,6 +1,7 @@
 // *****************************************************************************
 // Projects
 // *****************************************************************************
+lazy val scalaVersion213 = "2.13.3"
 
 lazy val root =
   project
@@ -18,9 +19,28 @@ lazy val root =
       ),
       publishArtifact := true,
       testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-      scalaVersion := "2.13.3",
-      crossScalaVersions := Seq("2.12.12", "2.13.3")
+      scalaVersion := scalaVersion213,
+      crossScalaVersions := Seq("2.12.12", scalaVersion213)
     )
+
+lazy val examples =
+  project
+    .in(file("examples"))
+    .settings(settings)
+    .settings(
+      name := "examples",
+      libraryDependencies ++= Seq(
+        library.testContainers % Test,
+        library.zio            % Provided,
+        library.zioTest        % Test,
+        library.zioTestSbt     % Test
+      ),
+      testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+      Test / fork := true,
+      scalaVersion := scalaVersion213,
+      crossScalaVersions := Seq("2.12.12", scalaVersion213)
+    )
+    .dependsOn(root)
 
 // *****************************************************************************
 // Library dependencies
@@ -30,21 +50,22 @@ lazy val library =
   new {
 
     object Version {
-      val zio            = "1.0.3"
-      val sttp           = "2.2.8"
-      val typesafeConfig = "1.4.0"
-      val promqlClient   = "HEAD-SNAPSHOT"
-      // FIXME: set to newest version when released
-      val timeseries = "HEAD-SNAPSHOT"
+      val zio                 = "1.0.3"
+      val sttp                = "2.2.8"
+      val typesafeConfig      = "1.4.0"
+      val promqlClient        = "0.4.0"
+      val timeseries          = "1.7.0"
+      val testContainersScala = "0.38.8"
     }
 
-    val promqlClient   = "io.sqooba.oss"                %% "scala-promql-client"           % Version.promqlClient
-    val timeseries     = "io.sqooba.oss"                %% "scala-timeseries-lib"          % Version.timeseries
-    val zio            = "dev.zio"                      %% "zio"                           % Version.zio
-    val zioTest        = "dev.zio"                      %% "zio-test"                      % Version.zio
-    val zioTestSbt     = "dev.zio"                      %% "zio-test-sbt"                  % Version.zio
-    val sttpZioClient  = "com.softwaremill.sttp.client" %% "async-http-client-backend-zio" % Version.sttp
-    val typesafeConfig = "com.typesafe"                  % "config"                        % Version.typesafeConfig
+    val promqlClient   = "io.sqooba.oss"                %% "scala-promql-client"            % Version.promqlClient
+    val timeseries     = "io.sqooba.oss"                %% "scala-timeseries-lib"           % Version.timeseries
+    val zio            = "dev.zio"                      %% "zio"                            % Version.zio
+    val zioTest        = "dev.zio"                      %% "zio-test"                       % Version.zio
+    val zioTestSbt     = "dev.zio"                      %% "zio-test-sbt"                   % Version.zio
+    val sttpZioClient  = "com.softwaremill.sttp.client" %% "async-http-client-backend-zio"  % Version.sttp
+    val typesafeConfig = "com.typesafe"                  % "config"                         % Version.typesafeConfig
+    val testContainers = "com.dimafeng"                 %% "testcontainers-scala-scalatest" % Version.testContainersScala
 
   }
 

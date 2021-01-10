@@ -14,6 +14,7 @@ import zio.IO
 // scalastyle:off line.size.limit
 /**
  * @define transformLink [[io.sqooba.oss.chronos.Query!.transform(key:io\.sqooba\.oss\.chronos\.QueryKey,start:java\.time\.Instant,end:java\.time\.Instant,step*]]
+ * @define functionLink [[io.sqooba.oss.chronos.Query.Range!.function(tsid:io\.sqooba\.oss\.timeseries\.entity.TsId,function:io\.sqooba\.oss\.chonos\.QueryFunction]]
  */
 // scalastyle:on line.size.limit
 
@@ -39,7 +40,7 @@ sealed trait Query { self =>
    * @param end   of the transformed query
    * @param step  sampling step to take, think sampling frequency
    * @param f     function that transforms the result of this query to the transformed
-   *              query. It is also passed the query properties [[io.sqooba.oss.chronos.Query$.Qid!]]
+   *              query. It is also passed the query properties [[io.sqooba.oss.chronos.Query.Qid!]]
    *              for the transformed query.
    */
   // Note: this is very verbose, can we have fewer arguments? For example, do we want
@@ -169,27 +170,27 @@ object Query {
    */
   implicit class IORangeQuery(self: IO[InvalidQueryError, Query.Range]) {
 
-    /** See [[io.sqooba.oss.chronos.Query.Range!.transform(key*]]. */
+    /** See $$transformLink. */
     def transform(key: QueryKey)(f: TransformFunction): IO[InvalidQueryError, Query.Transform] =
       self.map(_.transform(key)(f))
 
-    /** See [[io.sqooba.oss.chronos.Query.Range!.transform(key*]], with a raw string label. */
+    /** See $$transformLink, with a raw string label. */
     def transform(label: String)(f: TransformFunction): IO[InvalidQueryError, Query.Transform] =
       self.map(_.transform(label)(f))
 
-    /** See [[io.sqooba.oss.chronos.Query.Range!.transform(key*]], with a new tsId. */
+    /** See $$transformLink, with a new tsId. */
     def transform[I <: ChronosEntityId](tsId: TsId[I])(f: TransformFunction): IO[InvalidQueryError, Query.Transform] =
       self.map(_.transform(tsId)(f))
 
-    /** See [[io.sqooba.oss.chronos.Query.Range!.function(key*]]. */
+    /** See $$functionLink. */
     def function(key: QueryKey, f: QueryFunction): IO[InvalidQueryError, Query.Function] =
       self.map(_.function(key, f))
 
-    /** See [[io.sqooba.oss.chronos.Query.Range!.function(key*]], with a raw string label. */
+    /** See $$functionLink., with a raw string label. */
     def function(label: String, f: QueryFunction): IO[InvalidQueryError, Query.Function] =
       self.map(_.function(label, f))
 
-    /** See [[io.sqooba.oss.chronos.Query.Range!.function(key*]], with a new tsId. */
+    /** See $$functionLink, with a new tsId. */
     def function[I <: ChronosEntityId](tsId: TsId[I], f: QueryFunction): IO[InvalidQueryError, Query.Function] =
       self.map(_.function(tsId, f))
   }
@@ -253,11 +254,11 @@ object Query {
     def transform(key: QueryKey)(f: TransformFunction): Query.Transform =
       this.transform(key, id.start, id.end, id.step)(f)
 
-    /** See [[Range!.transform(key*]], with a raw string label. */
+    /** See $$transformLink, with a raw string label. */
     def transform(label: String)(f: TransformFunction): Query.Transform =
       this.transform(label, id.start, id.end, id.step)(f)
 
-    /** See [[Range!.transform(key*]], with a new tsId. */
+    /** See $$transformLink, with a new tsId. */
     def transform[I <: ChronosEntityId](tsId: TsId[I])(f: TransformFunction): Query.Transform =
       this.transform(tsId, id.start, id.end, id.step)(f)
   }
@@ -388,11 +389,12 @@ object Query {
 
   def apply(queries: Query*): Query = group(queries)
 
-  def group(queries: Seq[Query]): Query = queries match {
-    case Seq()     => Empty
-    case Seq(head) => head
-    case _         => Group(queries)
-  }
+  def group(queries: Seq[Query]): Query =
+    queries match {
+      case Seq()     => Empty
+      case Seq(head) => head
+      case _         => Group(queries)
+    }
 
   /**
    * Create a query from a list of queries
