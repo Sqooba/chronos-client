@@ -35,7 +35,7 @@ abstract class ChronosRunnable extends RunnableSpec[ChronosEnv, Any] {
   private def promConfigFromContainer = ZLayer.fromService[GenericContainer, PrometheusClientConfig] { container =>
     // scalastyle:off magic.number
     PrometheusClientConfig(
-      "localhost",
+      container.container.getContainerIpAddress(),
       container.container.getFirstMappedPort(),
       maxPointsPerTimeseries = 30000,
       retryNumber = 3,
