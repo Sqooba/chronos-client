@@ -1,5 +1,7 @@
 package io.sqooba.oss.chronos
 
+import scala.concurrent.duration.FiniteDuration
+
 /**
  * Represents a [[https://prometheus.io/docs/prometheus/latest/querying/functions/
  * PromQL query function]].
@@ -13,12 +15,16 @@ sealed abstract class QueryFunction(val name: String) {
 
 object QueryFunction {
 
-  case object AvgOverTime    extends QueryFunction("avg_over_time")
-  case object MinOverTime    extends QueryFunction("min_over_time")
-  case object MaxOverTime    extends QueryFunction("max_over_time")
-  case object SumOverTime    extends QueryFunction("sum_over_time")
-  case object CountOverTime  extends QueryFunction("count_over_time")
-  case object StddevOverTime extends QueryFunction("stddev_over_time")
-  case object StdvarOverTime extends QueryFunction("stdvar_over_time")
+  abstract class AggregateOverTime(name: String) extends QueryFunction(name) {
+    def range: FiniteDuration
+  }
+
+  case class AvgOverTime(range: FiniteDuration)    extends AggregateOverTime("avg_over_time")
+  case class MinOverTime(range: FiniteDuration)    extends AggregateOverTime("min_over_time")
+  case class MaxOverTime(range: FiniteDuration)    extends AggregateOverTime("max_over_time")
+  case class SumOverTime(range: FiniteDuration)    extends AggregateOverTime("sum_over_time")
+  case class CountOverTime(range: FiniteDuration)  extends AggregateOverTime("count_over_time")
+  case class StddevOverTime(range: FiniteDuration) extends AggregateOverTime("stddev_over_time")
+  case class StdvarOverTime(range: FiniteDuration) extends AggregateOverTime("stdvar_over_time")
 
 }

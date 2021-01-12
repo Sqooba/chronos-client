@@ -45,7 +45,7 @@ This configuration is required to create a layer containing a `ChronosService` u
 
 Runnable examples are available under the `examples` directory in the `io.sqooba.oss.chronosExamples` package.
 
-In order to run those examples, a docker daemon is required. THey can be run using `sbt examples/text`.
+In order to run those examples, a docker daemon is required. They can be run using `sbt examples/test`.
 
 ## Queries
 

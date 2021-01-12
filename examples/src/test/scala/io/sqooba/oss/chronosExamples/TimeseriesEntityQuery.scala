@@ -16,6 +16,7 @@ object TimeseriesEntityQuery extends ChronosRunnable {
       val start = Instant.parse("2020-12-12T00:00:00.000Z")
       val end   = start.plusSeconds(5.minutes.toSeconds)
       val step  = 10.seconds
+      val label = "cpu"
 
       final case class Workstation(id: Long) extends ChronosEntityId {
 
@@ -23,16 +24,39 @@ object TimeseriesEntityQuery extends ChronosRunnable {
           Map("type" -> "workstation", "id" -> id.toString)
 
       }
-      val workstation          = Workstation(1)
-      val tsId                 = workstation.buildTsId(TsLabel("cpu"))
-      val queryFromTsId: Query = Query.fromTsId(tsId, start, end, step = Some(step))
+      val workstation   = Workstation(1)
+      val tsId          = workstation.buildTsId(TsLabel(label))
+      val queryFromTsId = Query.fromTsId(tsId, start, end, step = Some(step))
 
-      val insertDataPoints = insertFakePercentage(start, end, Map("__name__" -> "cpu") ++ workstation.tags, step)
+      val insertDataPoints = insertFakePercentage(start, end, Map("__name__" -> label) ++ workstation.tags, step)
       val queries          = insertDataPoints *> Chronos.query(query = queryFromTsId)
 
       for {
         result <- queries
       } yield assert(result.map)(isNonEmpty)
+    },
+    testM("Querying from a timeseries identifier (TsId) works with time duration") {
+      val start = Instant.parse("2020-12-12T00:00:00.000Z")
+      val end   = start.plusSeconds(5.minutes.toSeconds)
+      val step  = 10.seconds
+      val label = "cpu"
+
+      final case class Workstation(id: Long) extends ChronosEntityId {
+
+        override def tags: Map[String, String] =
+          Map("type" -> "workstation", "id" -> id.toString)
+
+      }
+      val workstation   = Workstation(1)
+      val tsId          = workstation.buildTsId(TsLabel(label))
+      val queryFromTsId = Query.fromTsId(tsId, start, end, step = Some(step))
+
+      val insertDataPoints = insertFakePercentage(start, end, Map("__name__" -> label) ++ workstation.tags, step)
+      val queries          = insertDataPoints *> Chronos.query(query = queryFromTsId) <*> Chronos.query(query = queryFromTsId)
+
+      for {
+        (old, result) <- queries
+      } yield assert(result.map)(equalTo(old.map))
     }
   )
 

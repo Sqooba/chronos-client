@@ -2,6 +2,7 @@ package io.sqooba.oss.chronos
 
 import java.time.Instant
 import io.sqooba.oss.chronos.Query.{ getStep, Qid, TransformFunction }
+import io.sqooba.oss.chronos.QueryFunction._
 import io.sqooba.oss.promql
 import io.sqooba.oss.timeseries.TimeSeries
 
@@ -304,8 +305,16 @@ object Query {
     function: QueryFunction
   ) extends ExecutableQuery {
 
-    def toPromQl: promql.RangeQuery =
-      underlying.toPromQl.copy(query = s"$function(${underlying.toPromQl.query})")
+    def toPromQl: promql.RangeQuery = {
+      val rangeFormat = function match {
+        case fn: AggregateOverTime => f"[${fn.range.toSeconds}s]"
+        case _                     => ""
+      }
+      underlying.toPromQl.copy(
+        query = s"$function(${underlying.toPromQl.query}$rangeFormat)"
+      )
+
+    }
   }
 
   /**

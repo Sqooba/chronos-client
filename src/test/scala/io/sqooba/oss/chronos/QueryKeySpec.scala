@@ -1,8 +1,8 @@
 package io.sqooba.oss.chronos
 
-import io.sqooba.oss.promql.metrics.MatrixMetric
 import zio.test._
 import zio.test.Assertion._
+import io.sqooba.oss.promql.metrics.MatrixMetric
 
 object QueryKeySpec extends DefaultRunnableSpec {
 

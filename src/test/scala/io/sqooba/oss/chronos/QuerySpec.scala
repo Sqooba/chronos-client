@@ -57,10 +57,10 @@ object QuerySpec extends DefaultRunnableSpec {
               Instant.now().minusSeconds(1000),
               Instant.now()
             )
-            .function("new_label", QueryFunction.AvgOverTime)
+            .function("new_label", QueryFunction.AvgOverTime(10.minutes))
             .toPromQl
             .query
-        )(equalTo("""avg_over_time(complicate_label_123A{id="1234"})"""))
+        )(equalTo("""avg_over_time(complicate_label_123A{id="1234"}[600s])"""))
       ),
       testM("correct average query string with labels")(
         for {
@@ -71,11 +71,11 @@ object QuerySpec extends DefaultRunnableSpec {
                        Instant.now(),
                        step = Some(5.minutes)
                      )
-                     .function("new_label", QueryFunction.StddevOverTime)
+                     .function("new_label", QueryFunction.StddevOverTime(5.minutes))
 
         } yield assert(
           query.toPromQl.query
-        )(equalTo("""stddev_over_time(ABCD_Dir_degrees{tag="abc",tag2="def"})"""))
+        )(equalTo("""stddev_over_time(ABCD_Dir_degrees{tag="abc",tag2="def"}[300s])"""))
       ),
       test("correctly combines with other queries") {
         val from = Instant.now().minusSeconds(1000)
@@ -92,7 +92,7 @@ object QuerySpec extends DefaultRunnableSpec {
             )
             .function(
               TsId(TestId(99), TsLabel("intermediate_label")),
-              QueryFunction.MaxOverTime
+              QueryFunction.MaxOverTime(7.minutes)
             )
             .transform(
               TsId(TestId(78), TsLabel("new_label_for_result"))
@@ -122,7 +122,7 @@ object QuerySpec extends DefaultRunnableSpec {
                   ),
                   None
                 ),
-                QueryFunction.MaxOverTime
+                QueryFunction.MaxOverTime(7.minutes)
               ),
               f
             )
