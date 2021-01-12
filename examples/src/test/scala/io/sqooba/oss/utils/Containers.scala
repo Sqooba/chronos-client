@@ -17,6 +17,7 @@ object Containers {
         val container = GenericContainer(
           imageName,
           exposedPorts = Seq(port),
+          command = Seq("-retentionPeriod=1200"),
           waitStrategy = Wait.defaultWaitStrategy()
         )
         container.start()
