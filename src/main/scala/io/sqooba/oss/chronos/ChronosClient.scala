@@ -29,42 +29,54 @@ class ChronosClient(
     // Results are returned in the intermediate-results map which accumulates all range
     // and transform results that have already been executed once. This allows to
     // perform query deduplication by Qid.
-    def loop(result: IntermediateResult, query: Query): IO[ChronosError, IntermediateResult] =
+    def loop(intermediateResult: IntermediateResult, query: Query): IO[ChronosError, IntermediateResult] =
       query match {
         // Query groups are just sequentially executed for the moment.
         case Query.Group(head +: tail) =>
-          tail.foldLeft(loop(result, head)) {
+          tail.foldLeft(loop(intermediateResult, head)) {
             case (acc, next) =>
               for {
                 first  <- acc
-                second <- loop(result ++ first, next)
+                second <- loop(intermediateResult ++ first, next)
               } yield first ++ second
           }
 
         // Leaf range/function queries are deduplicated by their Qid. If the query has
         // already been executed once in this tree, the result is directly reused.
         case query: ExecutableQuery =>
-          result
+          intermediateResult
             .get(query.id)
             .fold(executeQuery(query)) { response =>
               IO.succeed(Map(query.id -> response))
             }
 
-        // First execute the underlying, then apply the transform function.
+        // For a Transform, we **always also return the underlying queries' result**.
+        //
+        // Normally, first the underlying are run, then the transform is applied and
+        // both are returned. If the underlying is already cached (in intermediate
+        // result), it will be taken from there in the recursion.
+        //
+        // If the result of the transform is also already in cache, we still recurse,
+        // assuming that the underlying is also cached, this will perform the same
+        // fast lookup as described above.
         case Query.Transform(id, underlying, f) =>
-          loop(result, underlying).map { underlyingResult =>
-            /*
-              Transform uses the timeseries queries so far and return a new timeseries to insert.
-              It is represented by Result => TimeSeries[Double]
-              In the following code, we take care of flattening the result that we got so far as well as
-              inserting the newly computed timeseries into the intermediate result for future usage.
-             */
-            val flattenedResults = underlyingResult.values.foldLeft(QueryResult(Map()))(_ ++ _)
-            val ts               = f(flattenedResults, id)
-            underlyingResult ++ Map(id -> QueryResult(Map(id.key -> ts)))
+          // Execute OR lookup underlying from cache.
+          loop(intermediateResult, underlying).map { underlyingResult =>
+            // Lookup transform result from cache, otherwise compute it.
+            val transformResult = intermediateResult.getOrElse(
+              id, {
+                // The transform is represented by Result => TimeSeries[Double].
+                // We flatten the intermediate results that we got so far as well and
+                // insert the newly computed time series into the intermediate results
+                // for future usage.
+                val flattenedResults = underlyingResult.values.foldLeft(QueryResult(Map()))(_ ++ _)
+                QueryResult(Map(id.key -> f(flattenedResults, id)))
+              }
+            )
+            underlyingResult ++ Map(id -> transformResult)
           }
 
-        case Query.Empty => IO.succeed(result)
+        case Query.Empty => IO.succeed(intermediateResult)
       }
 
     // Start the recursion with an empty intermediate-results map.

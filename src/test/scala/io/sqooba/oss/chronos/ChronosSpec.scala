@@ -27,14 +27,14 @@ object ChronosSpec extends DefaultRunnableSpec {
 
   private val interval10mMs = 10.minutes.toMillis
 
-  val simpleMetricResult =
+  private val simpleMetricResult =
     TimeSeries.ofOrderedEntriesSafe(
       Seq(
         TSEntry(1598443215000L, 28000.0, interval10mMs),
         TSEntry(1598443215000L + interval10mMs, 50.0, interval10mMs),
         TSEntry(1598443215000L + 2 * interval10mMs, 29000.0, interval10mMs)
       ),
-      true
+      compress = true
     )
 
   def debug(content: String): List[(String, String)] =
@@ -309,6 +309,31 @@ object ChronosSpec extends DefaultRunnableSpec {
               QueryKey("Measure_SUM", Map[String, String]()) -> simpleMetricResult
                 .plus(simpleMetricResult)
                 .plus(simpleMetricResult)
+            )
+          )
+        )
+      )
+    },
+    testM("should return transform AND underlying") {
+      assertM(
+        for {
+          _ <- whenAnyRequest.thenRespond(
+                 Response.ok(TestUtils.responseFor("other_label", Map()))
+               )
+
+          query <- Query
+                     .fromString("other_label", start, end, step = Some(10.minutes))
+                     .transform("transform_label") { (r, _) =>
+                       r.getByQueryKeyOrEmpty("other_label").map(_ * 2)
+                     }
+          res <- Chronos.query(query)
+        } yield res
+      )(
+        equalTo(
+          QueryResult(
+            Map(
+              QueryKey("transform_label", Map()) -> simpleMetricResult.map(_ * 2),
+              QueryKey("other_label", Map())     -> simpleMetricResult
             )
           )
         )

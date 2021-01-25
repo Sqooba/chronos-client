@@ -18,6 +18,13 @@ object ChronosClientSpec extends DefaultRunnableSpec {
 
   val spec = suite("ChronosClient")(
     suite("query")(
+      testM("should return empty on an empty query") {
+        assertM(
+          Chronos.query(Query.Empty)
+        )(
+          equalTo(QueryResult(Map()))
+        )
+      },
       testM("Should correctly convert an empty response") {
         val scenario = for {
           response <- ZIO.succeed(
