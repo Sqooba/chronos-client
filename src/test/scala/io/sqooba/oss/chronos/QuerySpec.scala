@@ -9,6 +9,9 @@ import io.sqooba.oss.timeseries.immutable.TSEntry
 
 import java.time.Instant
 import scala.concurrent.duration._
+import io.sqooba.oss.timeseries.TimeSeries
+
+import scala.collection.immutable.HashSet
 
 object QuerySpec extends DefaultRunnableSpec {
 
@@ -49,7 +52,30 @@ object QuerySpec extends DefaultRunnableSpec {
       }
     ),
     suite("Query Functions")(
-      test("correct average query string")(
+      test("should be equals") {
+        val start = Instant.now().minusSeconds(1000)
+        val end   = Instant.now()
+        assert(
+          Query
+            .fromTsId(
+              TsId(TestId(1234), TsLabel("complicate_label_123A")),
+              start,
+              end
+            )
+            .function("new_label", QueryFunction.AvgOverTime(10.minutes))
+        )(
+          equalTo(
+            Query
+              .fromTsId(
+                TsId(TestId(1234), TsLabel("complicate_label_123A")),
+                start,
+                end
+              )
+              .function("new_label", QueryFunction.AvgOverTime(10.minutes))
+          )
+        )
+      },
+      test("correct average query string") {
         assert(
           Query
             .fromTsId(
@@ -61,8 +87,8 @@ object QuerySpec extends DefaultRunnableSpec {
             .toPromQl
             .query
         )(equalTo("""avg_over_time(complicate_label_123A{id="1234"}[600s])"""))
-      ),
-      testM("correct average query string with labels")(
+      },
+      testM("correct average query string with labels") {
         for {
           query <- Query
                      .fromString(
@@ -76,7 +102,7 @@ object QuerySpec extends DefaultRunnableSpec {
         } yield assert(
           query.toPromQl.query
         )(equalTo("""stddev_over_time(ABCD_Dir_degrees{tag="abc",tag2="def"}[300s])"""))
-      ),
+      },
       test("correctly combines with other queries") {
         val from = Instant.now().minusSeconds(1000)
         val to   = Instant.now()
@@ -125,6 +151,60 @@ object QuerySpec extends DefaultRunnableSpec {
                 QueryFunction.MaxOverTime(7.minutes)
               ),
               f
+            )
+          )
+        )
+      }
+    ),
+    suite("Query transform")(
+      //  This test ensures that the TransformFunction is not taken into account when
+      //  comparing two Transform objects. There is no way to test if the lambdas are
+      //  equivalent and make the `equals` of the case class useless in most cases.
+      test("should be equal") {
+        val start = Instant.now().minusSeconds(1000)
+        val end   = Instant.now()
+        assert(
+          Query
+            .fromTsId(
+              TsId(TestId(1234), TsLabel("complicate_label_123A")),
+              start,
+              end
+            )
+            .transform("test", start, end) { case (_, _) => TimeSeries.ofOrderedEntriesSafe(List()) }
+        )(
+          equalTo(
+            Query
+              .fromTsId(
+                TsId(TestId(1234), TsLabel("complicate_label_123A")),
+                start,
+                end
+              )
+              .transform("test", start, end) {
+                case (_, _) => TimeSeries.ofOrderedEntriesSafe(List(TSEntry(start.toEpochMilli(), 1.0, 1000)))
+              }
+          )
+        )
+      },
+      test("used with a HashSet") {
+        val start = Instant.now().minusSeconds(1000)
+        val end   = Instant.now()
+
+        assert(
+          HashSet(
+            (1 to 10).map(i =>
+              Query
+                .fromTsId(TsId(TestId(1234), TsLabel("label")), start, end)
+                .transform("new_label")((_, _) => TSEntry(1, i.toDouble, 1))
+            )
+          )
+        )(
+          equalTo(
+            HashSet(
+              (1 to 10).map(i =>
+                Query
+                  .fromTsId(TsId(TestId(1234), TsLabel("label")), start, end)
+                  .transform("new_label")((_, _) => TSEntry(1, i.toDouble, 1))
+              )
             )
           )
         )

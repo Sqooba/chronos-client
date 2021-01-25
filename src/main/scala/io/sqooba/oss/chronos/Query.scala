@@ -227,7 +227,28 @@ object Query {
     id: Qid,
     underlying: Query,
     f: TransformFunction
-  ) extends Query
+  ) extends Query {
+
+    /**
+     * Compare this Transform query to another object.
+     *
+     * @note To hold the reflexivity property of equality between transform queries, we
+     * ignore the transform function lambda in the comparison. Lambdas in Scala are
+     * anonymous classes and are only seen as equal if they are the same object, which
+     * is rarely the case. Thus, we avoid that two structurally equivalent transforms
+     * (same id, same underlying query, same lambda but different objects) are seen as
+     * unequal by accepting that two transforms with the same id and underlying query
+     * but different lambdas are seen as equal too.
+     */
+    override def equals(other: Any): Boolean =
+      other match {
+        case query: Transform => query.id == id && query.underlying == underlying
+        case _                => false
+      }
+
+    /** See [[io.sqooba.oss.chronos.Query.Transform!.equals*]]. */
+    override def hashCode(): Int = (id, underlying).hashCode()
+  }
 
   trait ExecutableQuery extends Query {
 
