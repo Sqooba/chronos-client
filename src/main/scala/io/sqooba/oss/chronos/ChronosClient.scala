@@ -7,7 +7,7 @@ import io.sqooba.oss.promql.PrometheusService.PrometheusService
 import io.sqooba.oss.promql.metrics.MatrixMetric
 import io.sqooba.oss.timeseries.TimeSeries
 import io.sqooba.oss.timeseries.immutable.TSEntry
-import zio.{ IO, Task, TaskLayer, ULayer, URLayer, ZLayer }
+import zio.{ Has, IO, RLayer, Task, TaskLayer, ULayer, URLayer, ZLayer }
 import io.sqooba.oss.promql.{ MatrixResponseData, PrometheusClient, PrometheusService }
 
 /**
@@ -143,7 +143,15 @@ object ChronosClient {
   def liveDefault(): TaskLayer[ChronosService] =
     PrometheusClient.liveDefault >>> ChronosClient.live
 
-  def liveFromConfig(config: Config): TaskLayer[ChronosService] =
-    PrometheusClient.liveFromConfig(config) >>> ChronosClient.live
+  /**
+   * Returns a layer with a ChronosClient. If you have the config as a regular object,
+   * you can always do the following:
+   *
+   * {{{
+   *   zio.Task(config).toLayer >>> ChronosClient.liveFromConfig
+   * }}}
+   */
+  def liveFromConfig: RLayer[Has[Config], ChronosService] =
+    PrometheusClient.liveFromConfig >>> ChronosClient.live
 
 }
