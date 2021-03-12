@@ -18,8 +18,11 @@ import sttp.client.RequestT
 import java.net.URLDecoder
 import io.sqooba.oss.timeseries.immutable.TSEntry
 import java.time.Instant
+import org.junit.runner.RunWith
+import zio.test.junit.ZTestJUnitRunner
 
-object ChronosSpec extends DefaultRunnableSpec {
+@RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
+class ChronosSpec extends DefaultRunnableSpec {
 
   private val label1 = """Measure_10m_Avg{t_id="122"}"""
   private val label2 = """Measure_10m_Avg{t_id="117"}"""
@@ -54,9 +57,9 @@ object ChronosSpec extends DefaultRunnableSpec {
       assertM(
         for {
           _ <- whenAnyRequest.thenRespond {
-                 Response.ok(TestUtils.responseFor("Measure_10m_Avg", Map("t_id" -> "122")))
-               }
-          query  <- testQuery(label1)
+            Response.ok(TestUtils.responseFor("Measure_10m_Avg", Map("t_id" -> "122")))
+          }
+          query <- testQuery(label1)
           result <- Chronos.query(query)
         } yield result
       )(
@@ -79,16 +82,14 @@ object ChronosSpec extends DefaultRunnableSpec {
         The expected map should have both entry with the same key: this is not possible
        */
       val query =
-        testQuery(label1) + testQuery(label1).map(query =>
-          query.copy(id = query.id.copy(start = start.minusSeconds(6000)))
-        )
+        testQuery(label1) + testQuery(label1).map(query => query.copy(id = query.id.copy(start = start.minusSeconds(6000))))
 
       assertM(for {
         _ <- whenRequestMatchesPartial {
-               case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
-                 val start = Instant.parse(debug(content).find(_._1 == "start").get._2)
-                 // Create a response with a single datapoint set to the beginning of the query
-                 Response.ok(f"""
+          case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
+            val start = Instant.parse(debug(content).find(_._1 == "start").get._2)
+            // Create a response with a single datapoint set to the beginning of the query
+            Response.ok(f"""
                       {
                         "status": "success",
                         "data": {
@@ -111,7 +112,7 @@ object ChronosSpec extends DefaultRunnableSpec {
                       }
 
                  """)
-             }
+        }
         result <- query >>= Chronos.query
       } yield result.map.toList)(
         equalTo(
@@ -133,13 +134,13 @@ object ChronosSpec extends DefaultRunnableSpec {
       assertM(
         for {
           _ <- whenRequestMatchesPartial {
-                 case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
-                   val key = createResponse(debug(content).find(_._1 == "query").get._2)
-                   Response.ok(
-                     TestUtils.responseFor(key.name, key.tags)
-                   )
-               }
-          query  <- testQuery(label1) + testQuery(label2) + testQuery(label3)
+            case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
+              val key = createResponse(debug(content).find(_._1 == "query").get._2)
+              Response.ok(
+                TestUtils.responseFor(key.name, key.tags)
+              )
+          }
+          query <- testQuery(label1) + testQuery(label2) + testQuery(label3)
           result <- Chronos.query(query)
         } yield result
       )(
@@ -156,12 +157,12 @@ object ChronosSpec extends DefaultRunnableSpec {
     },
     testM("deduplicate queries") {
       val query = (
-        (testQuery(label1) + testQuery(label2)) +
-          (testQuery(label1) + testQuery(label2))
-      ) + (
-        (testQuery(label3) + testQuery(label2)) +
-          (testQuery(label1) + testQuery(label2))
-      )
+          (testQuery(label1) + testQuery(label2)) +
+              (testQuery(label1) + testQuery(label2))
+        ) + (
+              (testQuery(label3) + testQuery(label2)) +
+                  (testQuery(label1) + testQuery(label2))
+            )
 
       // fail after three responses to make sure that at most 3 are performed.
       val failResponse = Response("", StatusCode.TooManyRequests)
@@ -169,12 +170,12 @@ object ChronosSpec extends DefaultRunnableSpec {
       assertM(
         for {
           _ <- whenAnyRequest.thenRespondCyclicResponses(
-                 Seq(
-                   Response.ok(TestUtils.responseFor("Measure_10m_Avg", Map("t_id" -> "122"))),
-                   Response.ok(TestUtils.responseFor("Measure_10m_Avg", Map("t_id" -> "117"))),
-                   Response.ok(TestUtils.responseFor("Measure_10m_Avg", Map("t_id" -> "45")))
-                 ) ++ Seq.fill(1000)(failResponse): _*
-               )
+            Seq(
+              Response.ok(TestUtils.responseFor("Measure_10m_Avg", Map("t_id" -> "122"))),
+              Response.ok(TestUtils.responseFor("Measure_10m_Avg", Map("t_id" -> "117"))),
+              Response.ok(TestUtils.responseFor("Measure_10m_Avg", Map("t_id" -> "45")))
+            ) ++ Seq.fill(1000)(failResponse): _*
+          )
 
           result <- query >>= Chronos.query
         } yield result
@@ -192,21 +193,21 @@ object ChronosSpec extends DefaultRunnableSpec {
     },
     testM("working with time series") {
       val query = (
-        (testQuery(label1) + testQuery(label2)) +
-          (testQuery(label1) + testQuery(label2))
-      ) + (
-        (testQuery(label3) + testQuery(label2)) +
-          (testQuery(label1) + testQuery(label2))
-      )
+          (testQuery(label1) + testQuery(label2)) +
+              (testQuery(label1) + testQuery(label2))
+        ) + (
+              (testQuery(label3) + testQuery(label2)) +
+                  (testQuery(label1) + testQuery(label2))
+            )
 
       assertM((for {
         _ <- whenAnyRequest.thenRespond(
-               Source
-                 .fromResource("responses/singleMetric.json")
-                 .mkString
-             )
+          Source
+            .fromResource("responses/singleMetric.json")
+            .mkString
+        )
 
-        result     <- query >>= Chronos.query
+        result <- query >>= Chronos.query
         timeseries <- ZIO.fromOption(result.getByQueryKey(label1))
       } yield timeseries).run)(succeeds(anything))
     },
@@ -218,9 +219,7 @@ object ChronosSpec extends DefaultRunnableSpec {
        */
       val aggregationLabel = """SELECTED"""
       val query =
-        testQuery(label1) + testQuery(label1).map(query =>
-          query.copy(id = query.id.copy(start = start.minusSeconds(6000)))
-        )
+        testQuery(label1) + testQuery(label1).map(query => query.copy(id = query.id.copy(start = start.minusSeconds(6000))))
 
       val transformedQuery = query
         .transform(aggregationLabel, start, end, 1.minute) {
@@ -232,10 +231,10 @@ object ChronosSpec extends DefaultRunnableSpec {
 
       assertM(for {
         _ <- whenRequestMatchesPartial {
-               case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
-                 val start = Instant.parse(debug(content).find(_._1 == "start").get._2)
-                 // Create a response with a single datapoint set to the beginning of the query
-                 Response.ok(f"""
+          case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
+            val start = Instant.parse(debug(content).find(_._1 == "start").get._2)
+            // Create a response with a single datapoint set to the beginning of the query
+            Response.ok(f"""
                       {
                         "status": "success",
                         "data": {
@@ -258,7 +257,7 @@ object ChronosSpec extends DefaultRunnableSpec {
                       }
 
                  """)
-             }
+        }
         result <- transformedQuery >>= Chronos.query
       } yield result.map.toList)(
         equalTo(
@@ -293,10 +292,10 @@ object ChronosSpec extends DefaultRunnableSpec {
       assertM(
         for {
           _ <- whenRequestMatchesPartial {
-                 case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
-                   val key = createResponse(debug(content).find(_._1 == "query").get._2)
-                   Response.ok(TestUtils.responseFor(key.name, key.tags))
-               }
+            case RequestT(_, _, StringBody(content, _, _), _, _, _, _) =>
+              val key = createResponse(debug(content).find(_._1 == "query").get._2)
+              Response.ok(TestUtils.responseFor(key.name, key.tags))
+          }
           result <- transformedQuery >>= Chronos.query
         } yield result
       )(
@@ -307,8 +306,8 @@ object ChronosSpec extends DefaultRunnableSpec {
               QueryKey("Measure_10m_Avg", Map("t_id" -> "117")) -> simpleMetricResult,
               QueryKey("Measure_10m_Avg", Map("t_id" -> "45")) -> simpleMetricResult,
               QueryKey("Measure_SUM", Map[String, String]()) -> simpleMetricResult
-                .plus(simpleMetricResult)
-                .plus(simpleMetricResult)
+                    .plus(simpleMetricResult)
+                    .plus(simpleMetricResult)
             )
           )
         )
@@ -318,14 +317,14 @@ object ChronosSpec extends DefaultRunnableSpec {
       assertM(
         for {
           _ <- whenAnyRequest.thenRespond(
-                 Response.ok(TestUtils.responseFor("other_label", Map()))
-               )
+            Response.ok(TestUtils.responseFor("other_label", Map()))
+          )
 
           query <- Query
-                     .fromString("other_label", start, end, step = Some(10.minutes))
-                     .transform("transform_label") { (r, _) =>
-                       r.getByQueryKeyOrEmpty("other_label").map(_ * 2)
-                     }
+            .fromString("other_label", start, end, step = Some(10.minutes))
+            .transform("transform_label") { (r, _) =>
+              r.getByQueryKeyOrEmpty("other_label").map(_ * 2)
+            }
           res <- Chronos.query(query)
         } yield res
       )(
@@ -333,7 +332,7 @@ object ChronosSpec extends DefaultRunnableSpec {
           QueryResult(
             Map(
               QueryKey("transform_label", Map()) -> simpleMetricResult.map(_ * 2),
-              QueryKey("other_label", Map())     -> simpleMetricResult
+              QueryKey("other_label", Map()) -> simpleMetricResult
             )
           )
         )

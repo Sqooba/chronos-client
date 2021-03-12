@@ -3,8 +3,11 @@ package io.sqooba.oss.chronos
 import zio.test._
 import zio.test.Assertion._
 import io.sqooba.oss.promql.metrics.MatrixMetric
+import org.junit.runner.RunWith
+import zio.test.junit.ZTestJUnitRunner
 
-object QueryKeySpec extends DefaultRunnableSpec {
+@RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
+class QueryKeySpec extends DefaultRunnableSpec {
 
   val spec = suite("QueryKey")(
     suite("fromPromQuery")(

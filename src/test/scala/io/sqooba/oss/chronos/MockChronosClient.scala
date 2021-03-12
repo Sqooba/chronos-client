@@ -3,12 +3,14 @@ package io.sqooba.oss.chronos
 import io.sqooba.oss.chronos.Chronos.ChronosService
 import io.sqooba.oss.chronos.Query._
 import io.sqooba.oss.timeseries.immutable.TSEntry
-import zio.{ IO, ULayer, ZLayer }
+import zio.{IO, ULayer, ZLayer}
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.TestEnvironment
 
 import java.time.Instant
+import org.junit.runner.RunWith
+import zio.test.junit.ZTestJUnitRunner
 
 /**
  * A mock implementation of a ChronosService/Client.
@@ -27,6 +29,7 @@ object MockChronosClient {
    */
   def apply(mockedResult: QueryResult): ULayer[ChronosService] = ZLayer.succeed(
     new Chronos.Service {
+
       override def query(query: Query): IO[ChronosError, QueryResult] = {
 
         def loop(acc: QueryResult, query: Query): IO[ChronosError, QueryResult] = query match {
@@ -60,16 +63,17 @@ object MockChronosClient {
 // scalastyle:off magic.number
 // scalastyle:off multiple.string.literals
 
-object MockChronosClientSpec extends DefaultRunnableSpec {
+@RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
+class MockChronosClientSpec extends DefaultRunnableSpec {
   private val start = Instant.now().minusSeconds(1000)
-  private val end   = Instant.now()
+  private val end = Instant.now()
 
-  private val key      = QueryKey("label", Map())
+  private val key = QueryKey("label", Map())
   private val otherKey = QueryKey("other_label", Map())
 
   private val mockedResult = QueryResult(
     Map(
-      key      -> TSEntry(1, 2, 3),
+      key -> TSEntry(1, 2, 3),
       otherKey -> TSEntry(4, 5, 6)
     )
   )
@@ -98,32 +102,30 @@ object MockChronosClientSpec extends DefaultRunnableSpec {
       assertM(
         (
           Query.fromString("label", start, end) +
-            Query.fromString("other_label", start, end) >>= Chronos.query
-        )
-          .provideLayer(MockChronosClient(mockedResult))
+              Query.fromString("other_label", start, end) >>= Chronos.query
+        ).provideLayer(MockChronosClient(mockedResult))
       )(
         equalTo(mockedResult)
       )
     },
     testM("Transform query with results already computed") {
       val mr = mockedResult ++ QueryResult(
-        Map(
-          QueryKey("transform_label", Map()) -> TSEntry(7, 8, 9)
-        )
-      )
+              Map(
+                QueryKey("transform_label", Map()) -> TSEntry(7, 8, 9)
+              )
+            )
       assertM(
         (
           Query
             .fromString("other_label", start, end)
             .transform("transform_label")((_, _) => TSEntry(7, 8, 9)) >>= Chronos.query
-        )
-          .provideLayer(MockChronosClient(mr))
+        ).provideLayer(MockChronosClient(mr))
       )(
         equalTo(
           QueryResult(
             Map(
               QueryKey("transform_label", Map()) -> TSEntry(7, 8, 9),
-              otherKey                           -> TSEntry(4, 5, 6)
+              otherKey -> TSEntry(4, 5, 6)
             )
           )
         )
@@ -135,14 +137,13 @@ object MockChronosClientSpec extends DefaultRunnableSpec {
           Query
             .fromString("other_label", start, end)
             .transform("transform_label")((_, _) => TSEntry(7, 8, 9)) >>= Chronos.query
-        )
-          .provideLayer(MockChronosClient(mockedResult))
+        ).provideLayer(MockChronosClient(mockedResult))
       )(
         equalTo(
           QueryResult(
             Map(
               QueryKey("transform_label", Map()) -> TSEntry(7, 8, 9),
-              otherKey                           -> TSEntry(4, 5, 6)
+              otherKey -> TSEntry(4, 5, 6)
             )
           )
         )
@@ -153,14 +154,13 @@ object MockChronosClientSpec extends DefaultRunnableSpec {
       assertM(
         (
           baseQuery.transform("transform_label")((_, _) => TSEntry(7, 8, 9)) +
-            baseQuery >>= Chronos.query
-        )
-          .provideLayer(MockChronosClient(mockedResult))
+              baseQuery >>= Chronos.query
+        ).provideLayer(MockChronosClient(mockedResult))
       )(
         equalTo(
           QueryResult(
             Map(
-              otherKey                           -> TSEntry(4, 5, 6),
+              otherKey -> TSEntry(4, 5, 6),
               QueryKey("transform_label", Map()) -> TSEntry(7, 8, 9)
             )
           )

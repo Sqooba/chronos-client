@@ -4,7 +4,7 @@ import zio.test._
 import zio.test.Assertion._
 import TestUtils._
 import Query._
-import io.sqooba.oss.timeseries.entity.{ TsId, TsLabel }
+import io.sqooba.oss.timeseries.entity.{TsId, TsLabel}
 import io.sqooba.oss.timeseries.immutable.TSEntry
 
 import java.time.Instant
@@ -12,8 +12,11 @@ import scala.concurrent.duration._
 import io.sqooba.oss.timeseries.TimeSeries
 
 import scala.collection.immutable.HashSet
+import org.junit.runner.RunWith
+import zio.test.junit.ZTestJUnitRunner
 
-object QuerySpec extends DefaultRunnableSpec {
+@RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
+class QuerySpec extends DefaultRunnableSpec {
 
   val spec = suite("QuerySpec")(
     suite("And combinator")(
@@ -26,10 +29,10 @@ object QuerySpec extends DefaultRunnableSpec {
         assert(query)(equalTo(Group.of(Empty, Empty, Empty)))
       },
       testM("+ shoud be left associative") {
-        val first  = testQuery("A")
+        val first = testQuery("A")
         val second = testQuery("B")
-        val third  = testQuery("C")
-        val query  = first + second + third
+        val third = testQuery("C")
+        val query = first + second + third
 
         assertM(query)(
           equalTo(
@@ -54,7 +57,7 @@ object QuerySpec extends DefaultRunnableSpec {
     suite("Query Functions")(
       test("should be equals") {
         val start = Instant.now().minusSeconds(1000)
-        val end   = Instant.now()
+        val end = Instant.now()
         assert(
           Query
             .fromTsId(
@@ -91,13 +94,13 @@ object QuerySpec extends DefaultRunnableSpec {
       testM("correct average query string with labels") {
         for {
           query <- Query
-                     .fromString(
-                       """ABCD_Dir_degrees{tag="abc", tag2="def"}""",
-                       Instant.now().minusSeconds(1000),
-                       Instant.now(),
-                       step = Some(5.minutes)
-                     )
-                     .function("new_label", QueryFunction.StddevOverTime(5.minutes))
+            .fromString(
+              """ABCD_Dir_degrees{tag="abc", tag2="def"}""",
+              Instant.now().minusSeconds(1000),
+              Instant.now(),
+              step = Some(5.minutes)
+            )
+            .function("new_label", QueryFunction.StddevOverTime(5.minutes))
 
         } yield assert(
           query.toPromQl.query
@@ -105,7 +108,7 @@ object QuerySpec extends DefaultRunnableSpec {
       },
       test("correctly combines with other queries") {
         val from = Instant.now().minusSeconds(1000)
-        val to   = Instant.now()
+        val to = Instant.now()
 
         val f: TransformFunction = (_, _) => TSEntry(98, 76.54, 321)
         assert(
@@ -162,7 +165,7 @@ object QuerySpec extends DefaultRunnableSpec {
       //  equivalent and make the `equals` of the case class useless in most cases.
       test("should be equal") {
         val start = Instant.now().minusSeconds(1000)
-        val end   = Instant.now()
+        val end = Instant.now()
         assert(
           Query
             .fromTsId(
@@ -187,7 +190,7 @@ object QuerySpec extends DefaultRunnableSpec {
       },
       test("used with a HashSet") {
         val start = Instant.now().minusSeconds(1000)
-        val end   = Instant.now()
+        val end = Instant.now()
 
         assert(
           HashSet(

@@ -8,17 +8,20 @@ import io.sqooba.oss.utils.Utils._
 import io.sqooba.oss.utils.ChronosRunnable
 import io.sqooba.oss.timeseries.entity.TsLabel
 import io.sqooba.oss.timeseries.immutable.TSEntry
-import io.sqooba.oss.chronos.{ Chronos, ChronosEntityId, Query, QueryFunction }
+import io.sqooba.oss.chronos.{Chronos, ChronosEntityId, Query, QueryFunction}
 import io.sqooba.oss.timeseries.TimeSeries
+import org.junit.runner.RunWith
+import zio.test.junit.ZTestJUnitRunner
 
 // scalastyle:off magic.number
 
-object PromFunctionCall extends ChronosRunnable {
+@RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
+class PromFunctionCall extends ChronosRunnable {
 
   val spec: ChronosRunnable = suite("VictoriaMetrics Integration")(
     testM("aggregation function called on entity") {
       val start = Instant.parse("2020-12-12T00:00:00.000Z")
-      val end   = start.plusSeconds(5.minutes.toSeconds)
+      val end = start.plusSeconds(5.minutes.toSeconds)
 
       final case class Workstation(id: Long) extends ChronosEntityId {
 
@@ -26,16 +29,16 @@ object PromFunctionCall extends ChronosRunnable {
           Map("type" -> "workstation", "id" -> id.toString)
 
       }
-      val step        = 10.seconds
+      val step = 10.seconds
       val workstation = Workstation(1)
-      val tsId        = workstation.buildTsId(TsLabel("cpu"))
-      val avgLabel    = "avg_cpu"
+      val tsId = workstation.buildTsId(TsLabel("cpu"))
+      val avgLabel = "avg_cpu"
       val avgQuery = Query
         .fromTsId(tsId, start, end, step = Some(step))
         .function(avgLabel, QueryFunction.AvgOverTime(step))
 
       val insertDataPoints = insertFakePercentage(start, end, Map("__name__" -> "cpu") ++ workstation.tags, step)
-      val queries          = insertDataPoints <*> Chronos.query(query = avgQuery)
+      val queries = insertDataPoints <*> Chronos.query(query = avgQuery)
 
       for {
         (metrics, result) <- queries
@@ -47,7 +50,7 @@ object PromFunctionCall extends ChronosRunnable {
     },
     testM("aggregation function called on entity with time duration") {
       val start = Instant.parse("2020-12-12T00:00:00.000Z")
-      val end   = start.plusSeconds(5.minutes.toSeconds)
+      val end = start.plusSeconds(5.minutes.toSeconds)
 
       final case class Workstation(id: Long) extends ChronosEntityId {
 
@@ -55,17 +58,17 @@ object PromFunctionCall extends ChronosRunnable {
           Map("type" -> "workstation", "id" -> id.toString)
 
       }
-      val step           = 10.seconds
+      val step = 10.seconds
       val samplingFactor = 6 // Number of "passed step" to retrieve for each point
-      val workstation    = Workstation(1)
-      val tsId           = workstation.buildTsId(TsLabel("cpu"))
-      val avgLabel       = "avg_cpu"
+      val workstation = Workstation(1)
+      val tsId = workstation.buildTsId(TsLabel("cpu"))
+      val avgLabel = "avg_cpu"
       val avgQuery = Query
         .fromTsId(tsId, start, end, step = Some(step))
         .function(avgLabel, QueryFunction.AvgOverTime(samplingFactor * step))
 
       val insertDataPoints = insertFakePercentage(start, end, Map("__name__" -> "cpu") ++ workstation.tags, step)
-      val queries          = insertDataPoints <*> Chronos.query(query = avgQuery)
+      val queries = insertDataPoints <*> Chronos.query(query = avgQuery)
       /*
        This is a more complexe querying scenario, we force the step to 10s, so we will retrieve a datapoint for
        each 10 seconds between start and end.
@@ -96,7 +99,7 @@ object PromFunctionCall extends ChronosRunnable {
           equalTo(
             TimeSeries.ofOrderedEntriesSafe(
               metrics.timestamps
-                // The first part of the list is used to generate the "corner cases" of the average
+              // The first part of the list is used to generate the "corner cases" of the average
                 .zip(
                   (1 until samplingFactor).map(x => metrics.values.take(x)) ++ metrics.values.sliding(samplingFactor)
                 )
