@@ -127,7 +127,7 @@ object ChronosClient {
                   )
                   .slice(queryId.start.toEpochMilli, queryId.end.toEpochMilli)
               }.orElseFail(
-                TimeSeriesDataError(s"Could not parse time series data from ${matrixMetric.values}")
+                TimeSeriesDataError(s"Could not parse data for ${queryId}. Got ${matrixMetric.values}")
               )
     } yield key -> data
 

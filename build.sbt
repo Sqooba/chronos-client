@@ -53,7 +53,7 @@ lazy val library =
       val zio                 = "1.0.3"
       val sttp                = "2.2.8"
       val typesafeConfig      = "1.4.0"
-      val promqlClient        = "0.4.1"
+      val promqlClient        = "0.4.2"
       val timeseries          = "1.7.0"
       val testContainersScala = "0.38.8"
     }
