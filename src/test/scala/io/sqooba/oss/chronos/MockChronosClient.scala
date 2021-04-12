@@ -3,7 +3,7 @@ package io.sqooba.oss.chronos
 import io.sqooba.oss.chronos.Chronos.ChronosService
 import io.sqooba.oss.chronos.Query._
 import io.sqooba.oss.timeseries.immutable.TSEntry
-import zio.{IO, ULayer, ZLayer}
+import zio.{ IO, ULayer, ZLayer }
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.TestEnvironment
@@ -66,14 +66,14 @@ object MockChronosClient {
 @RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
 class MockChronosClientSpec extends DefaultRunnableSpec {
   private val start = Instant.now().minusSeconds(1000)
-  private val end = Instant.now()
+  private val end   = Instant.now()
 
-  private val key = QueryKey("label", Map())
+  private val key      = QueryKey("label", Map())
   private val otherKey = QueryKey("other_label", Map())
 
   private val mockedResult = QueryResult(
     Map(
-      key -> TSEntry(1, 2, 3),
+      key      -> TSEntry(1, 2, 3),
       otherKey -> TSEntry(4, 5, 6)
     )
   )
@@ -102,7 +102,7 @@ class MockChronosClientSpec extends DefaultRunnableSpec {
       assertM(
         (
           Query.fromString("label", start, end) +
-              Query.fromString("other_label", start, end) >>= Chronos.query
+            Query.fromString("other_label", start, end) >>= Chronos.query
         ).provideLayer(MockChronosClient(mockedResult))
       )(
         equalTo(mockedResult)
@@ -110,10 +110,10 @@ class MockChronosClientSpec extends DefaultRunnableSpec {
     },
     testM("Transform query with results already computed") {
       val mr = mockedResult ++ QueryResult(
-              Map(
-                QueryKey("transform_label", Map()) -> TSEntry(7, 8, 9)
-              )
-            )
+        Map(
+          QueryKey("transform_label", Map()) -> TSEntry(7, 8, 9)
+        )
+      )
       assertM(
         (
           Query
@@ -125,7 +125,7 @@ class MockChronosClientSpec extends DefaultRunnableSpec {
           QueryResult(
             Map(
               QueryKey("transform_label", Map()) -> TSEntry(7, 8, 9),
-              otherKey -> TSEntry(4, 5, 6)
+              otherKey                           -> TSEntry(4, 5, 6)
             )
           )
         )
@@ -143,7 +143,7 @@ class MockChronosClientSpec extends DefaultRunnableSpec {
           QueryResult(
             Map(
               QueryKey("transform_label", Map()) -> TSEntry(7, 8, 9),
-              otherKey -> TSEntry(4, 5, 6)
+              otherKey                           -> TSEntry(4, 5, 6)
             )
           )
         )
@@ -154,13 +154,13 @@ class MockChronosClientSpec extends DefaultRunnableSpec {
       assertM(
         (
           baseQuery.transform("transform_label")((_, _) => TSEntry(7, 8, 9)) +
-              baseQuery >>= Chronos.query
+            baseQuery >>= Chronos.query
         ).provideLayer(MockChronosClient(mockedResult))
       )(
         equalTo(
           QueryResult(
             Map(
-              otherKey -> TSEntry(4, 5, 6),
+              otherKey                           -> TSEntry(4, 5, 6),
               QueryKey("transform_label", Map()) -> TSEntry(7, 8, 9)
             )
           )

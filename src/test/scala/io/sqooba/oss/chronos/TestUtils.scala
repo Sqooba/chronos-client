@@ -2,9 +2,9 @@ package io.sqooba.oss.chronos
 
 import java.time.Instant
 import io.sqooba.oss.chronos.Chronos.ChronosService
-import io.sqooba.oss.promql.{PrometheusClient, PrometheusClientConfig}
-import sttp.client.asynchttpclient.zio.{AsyncHttpClientZioBackend, SttpClientStubbing}
-import zio.{IO, ULayer, ZLayer}
+import io.sqooba.oss.promql.{ PrometheusClient, PrometheusClientConfig }
+import sttp.client.asynchttpclient.zio.{ AsyncHttpClientZioBackend, SttpClientStubbing }
+import zio.{ IO, ULayer, ZLayer }
 
 import scala.concurrent.duration.FiniteDuration
 import scala.io.Source
@@ -24,7 +24,7 @@ object TestUtils {
   def chronosClient: ULayer[SttpClientStubbing with ChronosService] =
     (
       (ZLayer.succeed(config) ++ AsyncHttpClientZioBackend.stubLayer) >+>
-          PrometheusClient.live >+> ChronosClient.live
+        PrometheusClient.live >+> ChronosClient.live
     ).orDie
 
   case class TestId(id: Int) extends ChronosEntityId {
@@ -32,7 +32,7 @@ object TestUtils {
   }
 
   val start: Instant = Instant.parse("2020-08-26T12:00:00Z")
-  val end: Instant = Instant.parse("2020-08-26T14:23:00Z")
+  val end: Instant   = Instant.parse("2020-08-26T14:23:00Z")
 
   def testQuery(label: String): IO[InvalidQueryError, Query.Range] =
     Query.fromString(
