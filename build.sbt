@@ -13,9 +13,10 @@ lazy val root =
         library.timeseries,
         library.sttpZioClient,
         library.typesafeConfig,
-        library.zio        % Provided,
-        library.zioTest    % Test,
-        library.zioTestSbt % Test
+        library.zio           % Provided,
+        library.zioTest       % Test,
+        library.zioTestJunit  % Test,
+        library.zioTestSbt    % Test
       ),
       publishArtifact := true,
       testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
@@ -33,6 +34,7 @@ lazy val examples =
         library.testContainers % Test,
         library.zio            % Provided,
         library.zioTest        % Test,
+        library.zioTestJunit   % Test,
         library.zioTestSbt     % Test
       ),
       testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
@@ -63,6 +65,7 @@ lazy val library =
     val zio            = "dev.zio"                      %% "zio"                            % Version.zio
     val zioTest        = "dev.zio"                      %% "zio-test"                       % Version.zio
     val zioTestSbt     = "dev.zio"                      %% "zio-test-sbt"                   % Version.zio
+    val zioTestJunit   = "dev.zio"                      %% "zio-test-junit"                 % Version.zio
     val sttpZioClient  = "com.softwaremill.sttp.client" %% "async-http-client-backend-zio"  % Version.sttp
     val typesafeConfig = "com.typesafe"                  % "config"                         % Version.typesafeConfig
     val testContainers = "com.dimafeng"                 %% "testcontainers-scala-scalatest" % Version.testContainersScala

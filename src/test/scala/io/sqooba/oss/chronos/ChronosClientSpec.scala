@@ -15,7 +15,6 @@ import scala.io.Source
 import zio.ZIO
 
 import org.junit.runner.RunWith
-import zio.test.junit.ZTestJUnitRunner
 
 @RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
 class ChronosClientSpec extends DefaultRunnableSpec {

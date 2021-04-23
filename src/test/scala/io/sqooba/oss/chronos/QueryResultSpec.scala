@@ -6,7 +6,6 @@ import io.sqooba.oss.timeseries.immutable.TSEntry
 import zio.test.Assertion._
 import zio.test._
 import org.junit.runner.RunWith
-import zio.test.junit.ZTestJUnitRunner
 
 @RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
 class QueryResultSpec extends DefaultRunnableSpec {

@@ -13,7 +13,6 @@ import io.sqooba.oss.timeseries.TimeSeries
 
 import scala.collection.immutable.HashSet
 import org.junit.runner.RunWith
-import zio.test.junit.ZTestJUnitRunner
 
 @RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
 class QuerySpec extends DefaultRunnableSpec {

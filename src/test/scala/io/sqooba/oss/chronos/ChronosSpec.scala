@@ -19,7 +19,6 @@ import java.net.URLDecoder
 import io.sqooba.oss.timeseries.immutable.TSEntry
 import java.time.Instant
 import org.junit.runner.RunWith
-import zio.test.junit.ZTestJUnitRunner
 
 @RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
 class ChronosSpec extends DefaultRunnableSpec {

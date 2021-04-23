@@ -10,7 +10,6 @@ import zio.test.environment.TestEnvironment
 
 import java.time.Instant
 import org.junit.runner.RunWith
-import zio.test.junit.ZTestJUnitRunner
 
 /**
  * A mock implementation of a ChronosService/Client.

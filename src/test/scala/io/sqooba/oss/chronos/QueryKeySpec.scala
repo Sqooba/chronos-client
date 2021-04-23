@@ -4,7 +4,6 @@ import zio.test._
 import zio.test.Assertion._
 import io.sqooba.oss.promql.metrics.MatrixMetric
 import org.junit.runner.RunWith
-import zio.test.junit.ZTestJUnitRunner
 
 @RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
 class QueryKeySpec extends DefaultRunnableSpec {

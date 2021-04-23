@@ -7,12 +7,11 @@ import zio.test.Assertion._
 import scala.concurrent.duration._
 import io.sqooba.oss.utils.Utils._
 import io.sqooba.oss.utils.ChronosRunnable
-import io.sqooba.oss.chronos.{Chronos, ChronosEntityId, Query}
+import io.sqooba.oss.chronos.{ Chronos, ChronosEntityId, Query }
 import io.sqooba.oss.timeseries.entity.TsLabel
 import io.sqooba.oss.timeseries.immutable.EmptyTimeSeries
 import io.sqooba.oss.timeseries.TimeSeries
 import org.junit.runner.RunWith
-import zio.test.junit.ZTestJUnitRunner
 
 @RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
 class QueryTransformation extends ChronosRunnable {
@@ -20,9 +19,9 @@ class QueryTransformation extends ChronosRunnable {
   val spec: ChronosRunnable = suite("VictoriaMetrics Integration")(
     testM("Grouping and transforming a query should add a new timeseries") {
       val start = Instant.parse("2020-12-12T00:00:00.000Z")
-      val end = start.plusSeconds(5.minutes.toSeconds)
+      val end   = start.plusSeconds(5.minutes.toSeconds)
       val label = TsLabel("cpu")
-      val step = 10.seconds
+      val step  = 10.seconds
 
       final case class Workstation(id: Long) extends ChronosEntityId {
         override def tags: Map[String, String] =
@@ -57,7 +56,9 @@ class QueryTransformation extends ChronosRunnable {
             )
       }
 
-      val fakeDataPoints = ZIO.foreachPar_(office.workstations)(ws => insertFakePercentage(start, end, Map("__name__" -> label.value) ++ ws.tags, step))
+      val fakeDataPoints = ZIO.foreachPar_(office.workstations)(ws =>
+        insertFakePercentage(start, end, Map("__name__" -> label.value) ++ ws.tags, step)
+      )
       val queries = fakeDataPoints *> Chronos.query(query = transformedQueries)
 
       for {

@@ -8,11 +8,10 @@ import scala.concurrent.duration._
 import io.sqooba.oss.utils.Utils._
 import io.sqooba.oss.promql.RangeQuery
 import io.sqooba.oss.utils.ChronosRunnable
-import io.sqooba.oss.chronos.{Chronos, InvalidQueryError, Query}
+import io.sqooba.oss.chronos.{ Chronos, InvalidQueryError, Query }
 import io.sqooba.oss.timeseries.TimeSeries
 import io.sqooba.oss.timeseries.immutable.TSEntry
 import org.junit.runner.RunWith
-import zio.test.junit.ZTestJUnitRunner
 
 @RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
 class BasicQueries extends ChronosRunnable {
@@ -20,8 +19,8 @@ class BasicQueries extends ChronosRunnable {
   val spec: ChronosRunnable = suite("VictoriaMetrics Integration")(
     testM("String query and promql query are identical") {
       val start = Instant.parse("2020-12-12T00:00:00.000Z")
-      val end = start.plusSeconds(5.minutes.toSeconds)
-      val step = 10.seconds
+      val end   = start.plusSeconds(5.minutes.toSeconds)
+      val step  = 10.seconds
       val label = "cpu"
       val query = f"""$label{type="workstation"}"""
 
@@ -46,9 +45,9 @@ class BasicQueries extends ChronosRunnable {
         insertFakePercentage(start, end, Map("__name__" -> label, "type" -> "workstation"), step)
 
       val queries = insertDataPoints *> (queryFromProm <*> queryFromString).flatMap {
-              case (first, second) =>
-                Chronos.query(first) <*> Chronos.query(second)
-            }
+        case (first, second) =>
+          Chronos.query(first) <*> Chronos.query(second)
+      }
 
       for {
         (result1, result2) <- queries
@@ -56,8 +55,8 @@ class BasicQueries extends ChronosRunnable {
     },
     testM("Should retrieve the inserted points") {
       val start = Instant.parse("2020-12-12T00:00:00.000Z")
-      val end = start.plusSeconds(5.minutes.toSeconds)
-      val step = 10.seconds
+      val end   = start.plusSeconds(5.minutes.toSeconds)
+      val step  = 10.seconds
       val label = "cpu"
       val query = f"""$label{type="workstation"}"""
 
