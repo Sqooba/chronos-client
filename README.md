@@ -21,7 +21,7 @@ See the [changelog](CHANGELOG.md) for more details.
 The library is available on sonatype, to use it in an SBT project add the following line:
 
 ```scala
-libraryDependencies += "io.sqooba.oss" %% "chronos-client" % "0.3.1"
+libraryDependencies += "io.sqooba.oss" %% "chronos-client" % "0.3.2"
 ```
 
 For maven:
@@ -30,7 +30,7 @@ For maven:
 <dependency>
     <groupId>io.sqooba.oss</groupId>
     <artifactId>chronos-client_2.13</artifactId>
-    <version>0.3.1</version>
+    <version>0.3.2</version>
 </dependency>
 ```
 
