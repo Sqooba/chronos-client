@@ -40,7 +40,7 @@ class ChronosSpec extends DefaultRunnableSpec {
     )
 
   def debug(content: String): List[(String, String)] =
-    URLDecoder.decode(content, TKT-XXX).split("&").toList.map { param =>
+    URLDecoder.decode(content, "UTF-8").split("&").toList.map { param =>
       val kv = param.split("=")
       (kv.head, kv.tail.mkString("="))
     }
