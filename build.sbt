@@ -13,15 +13,15 @@ lazy val root =
         library.timeseries,
         library.sttpZioClient,
         library.typesafeConfig,
-        library.zio           % Provided,
-        library.zioTest       % Test,
-        library.zioTestJunit  % Test,
-        library.zioTestSbt    % Test
+        library.zio          % Provided,
+        library.zioTest      % Test,
+        library.zioTestJunit % Test,
+        library.zioTestSbt   % Test
       ),
       publishArtifact := true,
       testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
       scalaVersion := scalaVersion213,
-      crossScalaVersions := Seq("2.12.12", scalaVersion213)
+      crossScalaVersions := Seq("2.12.14", scalaVersion213)
     )
 
 lazy val examples =
@@ -40,7 +40,7 @@ lazy val examples =
       testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
       Test / fork := true,
       scalaVersion := scalaVersion213,
-      crossScalaVersions := Seq("2.12.12", scalaVersion213)
+      crossScalaVersions := Seq("2.12.14", scalaVersion213)
     )
     .dependsOn(root)
 
@@ -52,7 +52,7 @@ lazy val library =
   new {
 
     object Version {
-      val zio                 = "1.0.3"
+      val zio                 = "1.0.12"
       val sttp                = "2.2.8"
       val typesafeConfig      = "1.4.0"
       val promqlClient        = "0.5.0"
@@ -90,7 +90,9 @@ lazy val commonSettings =
     licenses := Seq("Apache 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
     publishMavenStyle := true,
     publishArtifact in Test := false,
-    pomIncludeRepository := { _ => false },
+    pomIncludeRepository := { _ =>
+      false
+    },
     publishTo := {
       val nexus = "https://oss.sonatype.org/"
       if (isSnapshot.value)

@@ -84,25 +84,26 @@ class ChronosClient(
     loop(Map(), query).map(i => i.values.foldLeft(QueryResult(Map()))(_ ++ _))
   }
 
-  private def executeQuery(query: ExecutableQuery): IO[ChronosError, IntermediateResult] = (
-    for {
-      data <- PrometheusService
-                .query(query.toPromQl)
-                .mapError(e => UnderlyingClientError(e))
-                .collect(TimeSeriesDataError("Expecting matrix")) {
-                  case d: MatrixResponseData => d
-                }
+  private def executeQuery(query: ExecutableQuery): IO[ChronosError, IntermediateResult] =
+    (
+      for {
+        data <- PrometheusService
+                  .query(query.toPromQl)
+                  .mapError(e => UnderlyingClientError(e))
+                  .collect(TimeSeriesDataError("Expecting matrix")) {
+                    case d: MatrixResponseData => d
+                  }
 
-      queryResult <- toTs(query.id, data)
-    } yield Map(query.id -> queryResult)
-  ).provide(promService)
+        queryResult <- toTs(query.id, data)
+      } yield Map(query.id -> queryResult)
+    ).provide(promService)
 
 }
 
 object ChronosClient {
 
   /**
-   * Converts matrix metric data to time series data. First, it tries to parse a TsId
+   * Converts matrix metric data to time series data. If no label is given, it tries to parse a TsId
    * from the `__name__` tag in the response. Then it converts the data.
    *
    * @return a TsId along with its time series data or fails if the id cannot be parsed.
@@ -112,9 +113,9 @@ object ChronosClient {
     matrixMetric: MatrixMetric
   ): IO[ChronosError, (QueryKey, TimeSeries[Double])] =
     for {
-      // If the query has a function, then the name is not returned and we fall back to
-      // the key of the original query.
-      key <- QueryKey.fromMatrixMetric(matrixMetric).catchSome {
+      // If the query has a function, then the name may or may not be returned. We prefer
+      // the key of the original query over sometimes unpredictable result labels..
+      key <- QueryKey.fromMatrixMetric(queryId.key.name, matrixMetric).catchSome {
                case IdParsingError(_) => IO.succeed(queryId.key)
              }
       data <- Task {

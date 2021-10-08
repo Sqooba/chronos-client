@@ -15,11 +15,12 @@ final case class QueryKey(name: String, tags: Map[String, String]) {
    * Checks whether this QueryKey matches the given TsId. The names have to be equal and
    * the given tsId's tags need to be a subset of the tags of this QueryKey's tags.
    */
-  def matches(tsId: TsId[_]): Boolean = tsId match {
-    case TsId(entityId: ChronosEntityId, TsLabel(label)) =>
-      matches(QueryKey(label, entityId.tags))
-    case _ => false
-  }
+  def matches(tsId: TsId[_]): Boolean =
+    tsId match {
+      case TsId(entityId: ChronosEntityId, TsLabel(label)) =>
+        matches(QueryKey(label, entityId.tags))
+      case _ => false
+    }
 
   /**
    * Checks whether this QueryKey matches the given raw key. The names have to be equal and
@@ -65,6 +66,11 @@ object QueryKey {
 
   private val nameKey = "__name__"
 
+  // this can lead to ambiguities. In function calls, , when you expect an empty __name__,
+  // VictoriaMetrics - depending on the version and query complexity - can be clever
+  // and label the result of `some_function(raw_signal)` as `raw_signal`
+  // Do not use if ever possible !
+  @deprecated("avoid not specifying query Key", since = "0.3.3")
   def fromMatrixMetric(matrixMetric: MatrixMetric): IO[IdParsingError, QueryKey] =
     IO.fromOption(
       matrixMetric.metric
@@ -72,6 +78,23 @@ object QueryKey {
         .map(label => QueryKey(label, matrixMetric.metric - nameKey))
     ).orElseFail(
       IdParsingError(s"Unable to extract a label and tags from ${matrixMetric.metric}")
+    )
+
+  def fromMatrixMetric(providedLabel: String, matrixMetric: MatrixMetric): IO[IdParsingError, QueryKey] =
+    IO.fromOption(
+      providedLabel match {
+        // scalastyle:off
+        case pattern(name, null) => Some(QueryKey(name, matrixMetric.metric - nameKey))
+        // scalastyle:on
+        case _ =>
+          matrixMetric.metric
+            .get(nameKey)
+            .map(label => QueryKey(label, matrixMetric.metric - nameKey))
+      }
+    ).orElseFail(
+      IdParsingError(
+        s"$providedLabel is not a valid label. Unable to attach the label to tags from ${matrixMetric.metric}"
+      )
     )
 
   def tagsToPromQuery(tags: Map[String, String]): String =

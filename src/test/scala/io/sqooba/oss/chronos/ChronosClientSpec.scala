@@ -1,25 +1,23 @@
 package io.sqooba.oss.chronos
 
-import zio.test._
-import zio.test.Assertion._
-
-import scala.concurrent.duration._
+import io.sqooba.oss.chronos.TestUtils.chronosClient
 import io.sqooba.oss.promql.MatrixResponseData
 import io.sqooba.oss.promql.metrics.MatrixMetric
 import io.sqooba.oss.timeseries.TimeSeries
 import io.sqooba.oss.timeseries.immutable.{ EmptyTimeSeries, TSEntry }
-import io.sqooba.oss.chronos.TestUtils.chronosClient
-import sttp.client.asynchttpclient.zio.stubbing._
-
-import scala.io.Source
-import zio.ZIO
-
 import org.junit.runner.RunWith
+import sttp.client.asynchttpclient.zio.stubbing._
+import zio.ZIO
+import zio.test.Assertion._
+import zio.test._
+
+import scala.concurrent.duration._
+import scala.io.Source
 
 @RunWith(classOf[zio.test.junit.ZTestJUnitRunner])
 class ChronosClientSpec extends DefaultRunnableSpec {
 
-  val spec = suite("ChronosClient")(
+  val spec: Spec[Any, TestFailure[ChronosError], TestSuccess] = suite("ChronosClient")(
     suite("query")(
       testM("should return empty on an empty query") {
         assertM(
@@ -74,6 +72,41 @@ class ChronosClientSpec extends DefaultRunnableSpec {
           response <- ZIO.succeed(
                         Source
                           .fromResource("responses/multipleMetrics.json")
+                          .mkString
+                      )
+          _     <- whenAnyRequest.thenRespond(response)
+          query <- TestUtils.testQuery("Measure_10m_Avg")
+          resp  <- Chronos.query(query)
+        } yield resp
+        assertM(scenario)(
+          equalTo(
+            QueryResult(
+              Map(
+                QueryKey("Measure_10m_Avg", Map("t_id" -> "122")) ->
+                  TimeSeries(
+                    Seq(
+                      TSEntry((1598443215000L, 28000.0, 15000)),
+                      TSEntry((1598443230000L, 12000.0, 15000)),
+                      TSEntry((1598443245000L, -3.0, 10.minutes.toMillis))
+                    )
+                  ),
+                QueryKey("Measure_10m_Avg", Map("t_id" -> "117")) ->
+                  TimeSeries(
+                    Seq(
+                      TSEntry((1598443200000L, 27000.0, 15000)),
+                      TSEntry((1598443215000L, 1.0, 10.minutes.toMillis))
+                    )
+                  )
+              )
+            )
+          )
+        )
+      },
+      testM("Should correctly convert response for multiple anonymous metrics") {
+        val scenario = for {
+          response <- ZIO.succeed(
+                        Source
+                          .fromResource("responses/multipleAnonymousMetrics.json")
                           .mkString
                       )
           _     <- whenAnyRequest.thenRespond(response)
@@ -233,8 +266,11 @@ class ChronosClientSpec extends DefaultRunnableSpec {
           )
           assertM(
             for {
-              query <- TestUtils.testQuery("""label{tag=~"value1|value2"}""", sampling)
-              ts    <- ChronosClient.toTs(query.id, data)
+              res1 <- TestUtils.testQuery("""label{tag=~"value1|value2"}""", sampling)
+              query: Query.Range =
+                res1 // avoiding "Pattern guards are only supported when .." compilation errors in scala 2
+              res2           <- ChronosClient.toTs(query.id, data)
+              ts: QueryResult = res2
             } yield ts
           )(equalTo(result))
         }

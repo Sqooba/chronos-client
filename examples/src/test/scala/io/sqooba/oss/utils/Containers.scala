@@ -1,7 +1,7 @@
 package io.sqooba.oss.utils
 
 import zio._
-import zio.blocking.{ effectBlocking, Blocking }
+import zio.blocking.{effectBlocking, Blocking}
 import com.dimafeng.testcontainers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 

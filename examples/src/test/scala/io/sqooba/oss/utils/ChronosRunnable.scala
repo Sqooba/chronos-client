@@ -50,8 +50,8 @@ abstract class ChronosRunnable extends RunnableSpec[ChronosEnv, Any] {
    */
   val chronosLayer: ULayer[ChronosEnv] = {
     val victoriaMetrics = Blocking.live >>> Containers.victoriaMetrics()
-    val promConfig      = victoriaMetrics >>> promConfigFromContainer
-    val promClient      = (promConfig ++ AsyncHttpClientZioBackend.layer()) >>> PrometheusClient.live
+    val promConfig = victoriaMetrics >>> promConfigFromContainer
+    val promClient = (promConfig ++ AsyncHttpClientZioBackend.layer()) >>> PrometheusClient.live
     testEnvironment ++ promClient >+> ChronosClient.live
   }.orDie
 
