@@ -1,6 +1,7 @@
 package io.sqooba.oss.chronos
 
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
 import io.sqooba.oss.chronos.Chronos.ChronosService
 import io.sqooba.oss.chronos.Query.{ ExecutableQuery, IntermediateResult, Qid }
 import io.sqooba.oss.promql.PrometheusService.PrometheusService
@@ -20,7 +21,7 @@ class ChronosClient(
 
   // scalastyle:off import.grouping
   import ChronosClient._
-
+  val logger = Logger(this.getClass)
   def query(
     query: Query
   ): IO[ChronosError, QueryResult] = {
@@ -87,13 +88,18 @@ class ChronosClient(
   private def executeQuery(query: ExecutableQuery): IO[ChronosError, IntermediateResult] =
     (
       for {
+        startTs <- IO.succeed(System.currentTimeMillis())
         data <- PrometheusService
                   .query(query.toPromQl)
                   .mapError(e => UnderlyingClientError(e))
                   .collect(TimeSeriesDataError("Expecting matrix")) {
                     case d: MatrixResponseData => d
                   }
-
+        _ <- IO.succeed(
+               logger.debug(
+                 s"PromQL Query ${query.toPromQl.query} (execution time: ${System.currentTimeMillis() - startTs}ms)"
+               )
+             )
         queryResult <- toTs(query.id, data)
       } yield Map(query.id -> queryResult)
     ).provide(promService)

@@ -90,6 +90,20 @@ class QuerySpec extends DefaultRunnableSpec {
             .query
         )(equalTo("""avg_over_time(complicate_label_123A{id="1234"}[600s])"""))
       },
+      test("correct sum of sum query string") {
+        assert(
+          Query
+            .fromTsId(
+              TsId(TestId(1234), TsLabel("complicate_label_123A")),
+              Instant.now().minusSeconds(1000),
+              Instant.now()
+            )
+            .function("new_label", QueryFunction.AvgOverTime(10.minutes))
+            .function("sum it all up", QueryFunction.UserFunction("sum"))
+            .toPromQl
+            .query
+        )(equalTo("""sum(avg_over_time(complicate_label_123A{id="1234"}[600s]))"""))
+      },
       testM("correct average query string with labels") {
         for {
           query <- Query

@@ -283,22 +283,6 @@ object Query {
     /** See $$transformLink, with a new tsId. */
     def transform[I <: ChronosEntityId](tsId: TsId[I])(f: TransformFunction): Query.Transform =
       this.transform(tsId, id.start, id.end, id.step)(f)
-  }
-
-  /** the base type for queries, fetches a time range of a given query key */
-  final case class Range(
-    id: Qid,
-    timeout: Option[FiniteDuration]
-  ) extends ExecutableQuery {
-
-    def toPromQl: promql.RangeQuery =
-      promql.RangeQuery(
-        id.key.toPromQuery,
-        id.start,
-        id.end,
-        id.step,
-        timeout
-      )
 
     /**
      * Apply a PromQL function to this query and attach a new label to it so that the
@@ -319,10 +303,27 @@ object Query {
       this.function(QueryKey.fromTsId(tsId), f)
   }
 
+  /** the base type for queries, fetches a time range of a given query key */
+  final case class Range(
+    id: Qid,
+    timeout: Option[FiniteDuration]
+  ) extends ExecutableQuery {
+
+    def toPromQl: promql.RangeQuery =
+      promql.RangeQuery(
+        id.key.toPromQuery,
+        id.start,
+        id.end,
+        id.step,
+        timeout
+      )
+
+  }
+
   /** Transforms an underlying query with the given function. */
   final case class Function(
     id: Qid,
-    underlying: Range,
+    underlying: ExecutableQuery,
     function: QueryFunction
   ) extends ExecutableQuery {
 

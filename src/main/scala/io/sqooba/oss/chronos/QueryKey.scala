@@ -40,8 +40,9 @@ final case class QueryKey(name: String, tags: Map[String, String]) {
 }
 
 object QueryKey {
-  private val pattern        = """([A-Za-z0-9_]+)(\{[^\}]+\})?""".r
-  private val tagsExtractors = """([0-9A-Za-z_="]+)="([^\}|"}]+)",?""".r
+  private val pattern = """([A-Za-z0-9_]+)(\{[^\}]+\})?""".r
+  // note: right now, the tag extractor will also extract simple RegExps, but fail for anything containing , } or "
+  val tagsExtractors = """([0-9A-Za-z_"]+)(=\~|\!=|\!\~|=)"([^"}]+)",?""".r
 
   def fromPromQuery(raw: String): IO[InvalidQueryError, QueryKey] =
     IO.fromOption(optionFromPromQuery(raw))
@@ -55,7 +56,17 @@ object QueryKey {
       // scalastyle:on
 
       case pattern(name, tags) =>
-        val rawTags = tagsExtractors.findAllMatchIn(tags).map(m => (m.group(1), m.group(2))).toMap
+        val rawTags = tagsExtractors
+          .findAllMatchIn(tags)
+          .map(m =>
+            (
+              // to allow for pattern matching tags, we now add the operator to the tag key.
+              // for backward compatibility, we only add non-"=" operators to the tag.
+              m.group(1) + { if (!m.group(2).equals("=")) m.group(2) else "" },
+              m.group(3)
+            )
+          )
+          .toMap
         Some(QueryKey(name, rawTags))
 
       case _ => None
@@ -97,10 +108,19 @@ object QueryKey {
       )
     )
 
+  def formatEq(key: String, value: String): String = s"""$key"$value""""
+
   def tagsToPromQuery(tags: Map[String, String]): String =
     if (tags.isEmpty) {
       ""
     } else {
-      tags.map { case (k, v) => s"""$k="$v"""" }.mkString("{", ",", "}")
+      tags.map {
+        case (k, v) =>
+          if (k.endsWith("!=") || k.endsWith("!~") || k.endsWith("=~") || k.endsWith("=")) {
+            formatEq(k, v)
+          } else {
+            formatEq(s"$k=", v)
+          }
+      }.mkString("{", ",", "}")
     }
 }

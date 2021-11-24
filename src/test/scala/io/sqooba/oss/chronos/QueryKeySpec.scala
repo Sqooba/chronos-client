@@ -48,6 +48,24 @@ class QueryKeySpec extends DefaultRunnableSpec {
         assertM(
           QueryKey.fromPromQuery(query).map(_.toPromQuery)
         )(equalTo(query))
+      },
+      testM("Should support query with multiple pattern matching tags") {
+        val query = """CustomLabel{tag=~"value",tag2!="value2",tag3!~"value3"}"""
+        assertM(
+          QueryKey.fromPromQuery(query).map(_.toPromQuery)
+        )(equalTo(query))
+      },
+      testM("Should support query with multiple pattern matching tags") {
+        val query = """CustomLabel{tag=~"value",tag2!="value2",tag3!~"value31|value32"}"""
+        assertM(
+          QueryKey.fromPromQuery(query).map(_.toPromQuery)
+        )(equalTo(query))
+      },
+      testM("Should ignore tags with illegal operator in query") {
+        val query = """CustomLabel{tag?="value",tag2==="value2,tag3="value3""}"""
+        assertM(
+          QueryKey.fromPromQuery(query)
+        )(equalTo(QueryKey("CustomLabel", Map("tag3" -> "value3"))))
       }
     ),
     suite("fromMatrixMetric")(
