@@ -16,6 +16,7 @@ object TestUtils {
     PrometheusClientConfig(
       "test",
       port = 12,
+      ssl = false,
       maxPointsPerTimeseries = 1000,
       retryNumber = 1,
       parallelRequests = 5

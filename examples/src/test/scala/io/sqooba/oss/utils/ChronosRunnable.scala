@@ -37,6 +37,7 @@ abstract class ChronosRunnable extends RunnableSpec[ChronosEnv, Any] {
     PrometheusClientConfig(
       container.container.getContainerIpAddress(),
       container.container.getFirstMappedPort(),
+      ssl = false,
       maxPointsPerTimeseries = 30000,
       retryNumber = 3,
       parallelRequests = 3
