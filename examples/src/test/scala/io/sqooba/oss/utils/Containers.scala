@@ -9,7 +9,7 @@ object Containers {
   type VictoriaMetrics = Has[GenericContainer]
 
   def victoriaMetrics(
-    imageName: String = "victoriametrics/victoria-metrics:v1.40.0"
+    imageName: String = "SCRUBBED-URL"
   ): ZLayer[Blocking, Nothing, VictoriaMetrics] = {
     val port = 8428
     ZManaged.make {
